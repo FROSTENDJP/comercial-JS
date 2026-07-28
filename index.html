@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR" data-theme="light"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* ============ THEME TOKENS â€” Laranja EnergÃ©tico + Azul Marinho ============ */
+/* ============ THEME TOKENS — Laranja Energético + Azul Marinho ============ */
 :root{
   --radius-lg:16px; --radius-md:12px; --radius-sm:8px;
   /* Destaque principal */
@@ -33,6 +33,14 @@ html[data-theme="light"]{
   --shadow:0 14px 36px -22px rgba(10,25,47,.22);
   --scrollbar:#CBD5E1;
 }
+.data-status-banner{
+  display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:var(--radius-md);
+  font-size:13px; font-weight:700; border:1px solid transparent;
+}
+.data-status-banner.loading{background:var(--panel-3); border-color:var(--border); color:var(--text-mut);}
+.data-status-banner.error{background:var(--red-soft); border-color:var(--red); color:var(--red);}
+.data-status-banner .spin{width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
 *{box-sizing:border-box; margin:0; padding:0;}
 html,body{height:100%;}
 body{
@@ -160,7 +168,7 @@ button{font-family:inherit;}
 .card.featured{background:var(--orange-soft); border-color:var(--gold);}
 .card.featured .card-title, .card.featured{color:var(--navy);}
 
-/* ---- BOTÃ•ES ---- */
+/* ---- BOTÕES ---- */
 .btn-primary{
   background:var(--btn-primary-bg); color:var(--btn-primary-fg); border:none;
   font-weight:800; font-size:13px; padding:11px 18px; border-radius:10px; cursor:pointer;
@@ -354,8 +362,10 @@ tbody tr:last-child td{border-bottom:none;}
 
     <main class="content">
 
+      <div id="dataStatusBanner" class="data-status-banner" style="display:none;"></div>
+
       <!-- ============================================================ -->
-      <!-- TEMPLATE 1 â€” VISÃƒO GERAL -->
+      <!-- TEMPLATE 1 — VISÃO GERAL -->
       <!-- ============================================================ -->
       <section class="view active" id="view-geral">
         <div class="view-head">
@@ -366,44 +376,20 @@ tbody tr:last-child td{border-bottom:none;}
           <span class="chip gold" id="ufBadgeGeral">PB + RN</span>
         </div>
 
-        <div class="kpi-row" id="kpiRowGeral"><div class="kpi-card" style="--accent:#14b8a6">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ1</div>
-    <div class="val">174</div>
-    <div class="sub">unidades vendidas</div>
-  </div><div class="kpi-card" style="--accent:#22c55e">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ125</div>
-    <div class="val">72</div>
-    <div class="sub">unidades vendidas</div>
-  </div><div class="kpi-card" style="--accent:#FF6B00">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ160</div>
-    <div class="val">105</div>
-    <div class="sub">unidades vendidas</div>
-  </div><div class="kpi-card" style="--accent:#0A192F">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12"></path></svg>Total Geral</div>
-    <div class="val">358</div>
-    <div class="sub">PB 260 - RN 98</div>
-  </div><div class="kpi-card" style="--accent:#E65100">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-8"></path></svg>PrevisÃ£o</div>
-    <div class="val">345</div>
-    <div class="sub">unidades projetadas</div>
-  </div><div class="kpi-card" style="--accent:#22c55e">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><circle cx="12" cy="12" r=".5"></circle></svg>Meta da Empresa</div>
-    <div class="val">312</div>
-    <div class="sub">Revendas 270 - Lojas 88</div>
-  </div></div>
+        <div class="kpi-row" id="kpiRowGeral"></div>
 
         <div class="grid-3">
           <div class="card">
             <div class="card-title">Participação por Modelo <span class="tag">% do total vendido</span></div>
-            <div class="chart-box chart-h-220"><canvas id="chartModeloShare" width="462" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 462px;"></canvas></div>
+            <div class="chart-box chart-h-220"><canvas id="chartModeloShare"></canvas></div>
           </div>
           <div class="card">
             <div class="card-title">Volume por Modelo <span class="tag">unidades</span></div>
-            <div class="chart-box chart-h-220"><canvas id="chartModeloVol" width="462" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 462px;"></canvas></div>
+            <div class="chart-box chart-h-220"><canvas id="chartModeloVol"></canvas></div>
           </div>
           <div class="card">
             <div class="card-title">Revendas x Lojas <span class="tag">canal de venda</span></div>
-            <div class="chart-box chart-h-220"><canvas id="chartCanal" width="462" height="220" style="display: block; box-sizing: border-box; height: 220px; width: 462px;"></canvas></div>
+            <div class="chart-box chart-h-220"><canvas id="chartCanal"></canvas></div>
           </div>
         </div>
 
@@ -426,140 +412,14 @@ tbody tr:last-child td{border-bottom:none;}
                   <th data-key="pct">Atingimento</th>
                 </tr>
               </thead>
-              <tbody>
-    <tr>
-      <td><b>Marcelo (Loja Propria) - PB</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">82</td><td class="num">35</td><td class="num">63</td>
-      <td class="num"><b>180</b></td>
-      <td class="num">382</td>
-      <td class="num">202</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:47%"></div></div><span class="progress-pct">47%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Marcelo (Loja Propria) - RN</b></td>
-      <td><span class="chip blue">RN</span></td>
-      <td class="num">51</td><td class="num">22</td><td class="num">14</td>
-      <td class="num"><b>87</b></td>
-      <td class="num">450</td>
-      <td class="num">363</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:19%"></div></div><span class="progress-pct">19%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Mamanguape</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">12</td><td class="num">5</td><td class="num">2</td>
-      <td class="num"><b>19</b></td>
-      <td class="num">75</td>
-      <td class="num">56</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:25%"></div></div><span class="progress-pct">25%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>João Pessoa (Matriz)</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">2</td><td class="num">3</td><td class="num">8</td>
-      <td class="num"><b>13</b></td>
-      <td class="num">90</td>
-      <td class="num">77</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:14%"></div></div><span class="progress-pct">14%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Patos (Centro)</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">3</td><td class="num">1</td><td class="num">6</td>
-      <td class="num"><b>10</b></td>
-      <td class="num">105</td>
-      <td class="num">95</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:10%"></div></div><span class="progress-pct">10%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Beira Rio</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">3</td><td class="num">1</td><td class="num">5</td>
-      <td class="num"><b>9</b></td>
-      <td class="num">75</td>
-      <td class="num">66</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:12%"></div></div><span class="progress-pct">12%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Sapé</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">4</td><td class="num">1</td><td class="num">3</td>
-      <td class="num"><b>8</b></td>
-      <td class="num">60</td>
-      <td class="num">52</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:13%"></div></div><span class="progress-pct">13%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Guarabira</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">4</td><td class="num">2</td><td class="num">2</td>
-      <td class="num"><b>8</b></td>
-      <td class="num">60</td>
-      <td class="num">52</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:13%"></div></div><span class="progress-pct">13%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Natal</b></td>
-      <td><span class="chip blue">RN</span></td>
-      <td class="num">3</td><td class="num">2</td><td class="num">1</td>
-      <td class="num"><b>6</b></td>
-      <td class="num">45</td>
-      <td class="num">39</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:13%"></div></div><span class="progress-pct">13%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Patos (CD)</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">4</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>4</b></td>
-      <td class="num">30</td>
-      <td class="num">26</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:13%"></div></div><span class="progress-pct">13%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Parnamirim (Filial)</b></td>
-      <td><span class="chip blue">RN</span></td>
-      <td class="num">3</td><td class="num">0</td><td class="num">1</td>
-      <td class="num"><b>4</b></td>
-      <td class="num">45</td>
-      <td class="num">41</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:9%"></div></div><span class="progress-pct">9%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>São Bento</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">1</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>1</b></td>
-      <td class="num">60</td>
-      <td class="num">59</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:2%"></div></div><span class="progress-pct">2%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Pombal</b></td>
-      <td><span class="chip gold">PB</span></td>
-      <td class="num">1</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>1</b></td>
-      <td class="num">60</td>
-      <td class="num">59</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:2%"></div></div><span class="progress-pct">2%</span></div></td>
-    </tr>
-    <tr>
-      <td><b>Parnamirim (Matriz)</b></td>
-      <td><span class="chip blue">RN</span></td>
-      <td class="num">1</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>1</b></td>
-      <td class="num">45</td>
-      <td class="num">44</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:2%"></div></div><span class="progress-pct">2%</span></div></td>
-    </tr></tbody>
+              <tbody></tbody>
             </table>
           </div>
         </div>
       </section>
 
       <!-- ============================================================ -->
-      <!-- TEMPLATE 2 â€” RESUMO POR FILIAL -->
+      <!-- TEMPLATE 2 — RESUMO POR FILIAL -->
       <!-- ============================================================ -->
       <section class="view" id="view-filial">
         <div class="view-head">
@@ -571,32 +431,12 @@ tbody tr:last-child td{border-bottom:none;}
 
         <div class="card">
           <div class="store-picker">
-            <select class="store-select" id="storeSelect"><option value="Beira Rio" selected="">Beira Rio (PB)</option><option value="SapÃ©">SapÃ© (PB)</option><option value="JoÃ£o Pessoa (Matriz)">JoÃ£o Pessoa (Matriz) (PB)</option><option value="SÃ£o Bento">SÃ£o Bento (PB)</option><option value="Pombal">Pombal (PB)</option><option value="Mamanguape">Mamanguape (PB)</option><option value="Guarabira">Guarabira (PB)</option><option value="Patos (Centro)">Patos (Centro) (PB)</option><option value="Patos (CD)">Patos (CD) (PB)</option><option value="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB (PB)</option><option value="Parnamirim (Matriz)">Parnamirim (Matriz) (RN)</option><option value="Parnamirim (Filial)">Parnamirim (Filial) (RN)</option><option value="Natal">Natal (RN)</option><option value="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN (RN)</option></select>
-            <div class="store-chips" id="storeQuickChips"><span class="store-chip " data-store="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB</span><span class="store-chip " data-store="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN</span><span class="store-chip " data-store="Mamanguape">Mamanguape</span><span class="store-chip " data-store="JoÃ£o Pessoa (Matriz)">JoÃ£o Pessoa (Matriz)</span><span class="store-chip " data-store="Patos (Centro)">Patos (Centro)</span></div>
+            <select class="store-select" id="storeSelect"><option value="Beira Rio" selected="">Beira Rio (PB)</option><option value="Sapé">Sapé (PB)</option><option value="João Pessoa (Matriz)">João Pessoa (Matriz) (PB)</option><option value="São Bento">São Bento (PB)</option><option value="Pombal">Pombal (PB)</option><option value="Mamanguape">Mamanguape (PB)</option><option value="Guarabira">Guarabira (PB)</option><option value="Patos (Centro)">Patos (Centro) (PB)</option><option value="Patos (CD)">Patos (CD) (PB)</option><option value="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB (PB)</option><option value="Parnamirim (Matriz)">Parnamirim (Matriz) (RN)</option><option value="Parnamirim (Filial)">Parnamirim (Filial) (RN)</option><option value="Natal">Natal (RN)</option><option value="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN (RN)</option></select>
+            <div class="store-chips" id="storeQuickChips"><span class="store-chip " data-store="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB</span><span class="store-chip " data-store="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN</span><span class="store-chip " data-store="Mamanguape">Mamanguape</span><span class="store-chip " data-store="João Pessoa (Matriz)">João Pessoa (Matriz)</span><span class="store-chip " data-store="Patos (Centro)">Patos (Centro)</span></div>
           </div>
         </div>
 
-        <div class="kpi-row" id="kpiRowFilial"><div class="kpi-card" style="--accent:#14b8a6">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ1</div>
-    <div class="val">3</div>
-    <div class="sub">meta 20</div>
-  </div><div class="kpi-card" style="--accent:#22c55e">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ125</div>
-    <div class="val">1</div>
-    <div class="sub">meta 25</div>
-  </div><div class="kpi-card" style="--accent:#FF6B00">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>AZ160</div>
-    <div class="val">5</div>
-    <div class="sub">meta 30</div>
-  </div><div class="kpi-card" style="--accent:#0A192F">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-8"></path></svg>Total Vendido</div>
-    <div class="val">9</div>
-    <div class="sub">de 75 unidades meta</div>
-  </div><div class="kpi-card" style="--accent:#ef4444">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><circle cx="12" cy="12" r=".5"></circle></svg>Falta p/ Meta</div>
-    <div class="val">66</div>
-    <div class="sub">AtenÃ§Ã£o</div>
-  </div></div>
+        <div class="kpi-row" id="kpiRowFilial"></div>
 
         <div class="grid-2">
           <div class="card">
@@ -604,34 +444,30 @@ tbody tr:last-child td{border-bottom:none;}
             <div class="tbl-wrap">
               <table id="tblVendedores">
                 <thead><tr><th>Vendedor</th><th class="num">AZ1</th><th class="num">AZ125</th><th class="num">AZ160</th><th class="num">Total</th></tr></thead>
-                <tbody>
-    <tr><td><b>Marcineide</b></td><td class="num">0</td><td class="num">0</td><td class="num">2</td><td class="num"><b>2</b></td></tr>
-  
-    <tr><td><b>Eduardo</b></td><td class="num">3</td><td class="num">1</td><td class="num">3</td><td class="num"><b>7</b></td></tr>
-  </tbody>
+                <tbody></tbody>
               </table>
             </div>
           </div>
           <div class="card">
             <div class="card-title">Vendas por Vendedor <span class="tag">unidades</span></div>
-            <div class="chart-box chart-h-260"><canvas id="chartVendedoresFilial" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas></div>
+            <div class="chart-box chart-h-260"><canvas id="chartVendedoresFilial"></canvas></div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-title">Metas por Modelo â€” <span id="filialModeloTitle" class="tag">Beira Rio</span></div>
-          <div class="chart-box chart-h-220"><canvas id="chartMetasFilial" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas></div>
+          <div class="card-title">Metas por Modelo — <span id="filialModeloTitle" class="tag">Beira Rio</span></div>
+          <div class="chart-box chart-h-220"><canvas id="chartMetasFilial"></canvas></div>
         </div>
       </section>
 
       <!-- ============================================================ -->
-      <!-- TEMPLATE 2.5 â€” RANKING -->
+      <!-- TEMPLATE 2.5 — RANKING -->
       <!-- ============================================================ -->
       <section class="view" id="view-ranking">
         <div class="view-head">
           <div>
             <h2>Ranking de Vendas</h2>
-            <p>ClassificaÃ§Ã£o por lojas, vendedores e revendedores no perÃ­odo.</p>
+            <p>Classificação por lojas, vendedores e revendedores no período.</p>
           </div>
         </div>
 
@@ -643,14 +479,14 @@ tbody tr:last-child td{border-bottom:none;}
 
         <div class="subview active" id="sub-lojas">
           <div class="card">
-            <div class="card-title">Vendas por Loja <span class="tag">unidades vendidas no perÃ­odo</span></div>
-            <div class="chart-box chart-h-360"><canvas id="chartRankLojas" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas></div>
+            <div class="card-title">Vendas por Loja <span class="tag">unidades vendidas no período</span></div>
+            <div class="chart-box chart-h-360"><canvas id="chartRankLojas"></canvas></div>
           </div>
         </div>
 
         <div class="subview" id="sub-vendedores">
           <div class="card">
-            <div class="card-title">Vendas por Vendedor <span class="tag">unidades vendidas no perÃ­odo</span></div>
+            <div class="card-title">Vendas por Vendedor <span class="tag">unidades vendidas no período</span></div>
             <div class="chart-box chart-h-360"><canvas id="chartRankVendedores"></canvas></div>
           </div>
         </div>
@@ -676,7 +512,7 @@ tbody tr:last-child td{border-bottom:none;}
             <div class="tbl-wrap">
               <table id="tblRankRevendedores">
                 <thead>
-                  <tr><th>Pos.</th><th>Cidade / Revendedor</th><th class="num">AZ160</th><th class="num">AZ125</th><th class="num">AZ1</th><th class="num">Total</th><th class="num">ProjeÃ§Ã£o</th><th class="num">Meta</th></tr>
+                  <tr><th>Pos.</th><th>Cidade / Revendedor</th><th class="num">AZ160</th><th class="num">AZ125</th><th class="num">AZ1</th><th class="num">Total</th><th class="num">Projeção</th><th class="num">Meta</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -686,33 +522,17 @@ tbody tr:last-child td{border-bottom:none;}
       </section>
 
       <!-- ============================================================ -->
-      <!-- TEMPLATE 3 â€” DETALHAMENTO REVENDEDORES -->
+      <!-- TEMPLATE 3 — DETALHAMENTO REVENDEDORES -->
       <!-- ============================================================ -->
       <section class="view" id="view-revendedores">
         <div class="view-head">
           <div>
             <h2>Detalhamento de Vendas dos Revendedores</h2>
-            <p>Rede completa de revendedores, atingimento individual de metas e histÃ³rico de compras.</p>
+            <p>Rede completa de revendedores, atingimento individual de metas e histórico de compras.</p>
           </div>
         </div>
 
-        <div class="kpi-row" id="kpiRowRevDetail"><div class="kpi-card" style="--accent:#0A192F">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12"></path></svg>Revendedores Ativos</div>
-    <div class="val">15 / 22</div>
-    <div class="sub">com compras no perÃ­odo</div>
-  </div><div class="kpi-card" style="--accent:#FF6B00">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"></path></svg>Total Comprado</div>
-    <div class="val">183</div>
-    <div class="sub">unidades na rede</div>
-  </div><div class="kpi-card" style="--accent:#22c55e">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><circle cx="12" cy="12" r=".5"></circle></svg>Meta da Rede</div>
-    <div class="val">312</div>
-    <div class="sub">59% atingido</div>
-  </div><div class="kpi-card" style="--accent:#E65100">
-    <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-8"></path></svg>Metas Batidas</div>
-    <div class="val">5</div>
-    <div class="sub">revendedores acima da meta</div>
-  </div></div>
+        <div class="kpi-row" id="kpiRowRevDetail"></div>
 
         <div class="card">
           <div class="filter-bar">
@@ -755,205 +575,7 @@ tbody tr:last-child td{border-bottom:none;}
                   <th data-key="status">Status</th>
                 </tr>
               </thead>
-              <tbody><tr>
-      <td><span class="rank-pill top1">1</span></td>
-      <td><b>Sou Mais Motos - Sousa</b></td>
-      <td class="num">4</td><td class="num">4</td><td class="num">22</td>
-      <td class="num"><b>30</b></td>
-      <td class="num">5</td>
-      <td class="num">5</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ok" style="width:100%"></div></div><span class="progress-pct">600%</span></div></td>
-      <td><span class="status-badge ok">Meta batida</span></td>
-    </tr><tr>
-      <td><span class="rank-pill top2">2</span></td>
-      <td><b>Realliza Motos - CG</b></td>
-      <td class="num">12</td><td class="num">3</td><td class="num">9</td>
-      <td class="num"><b>24</b></td>
-      <td class="num">60</td>
-      <td class="num">55</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:44%"></div></div><span class="progress-pct">44%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill top3">3</span></td>
-      <td><b>Grupo Chaves - Bayeux</b></td>
-      <td class="num">6</td><td class="num">8</td><td class="num">10</td>
-      <td class="num"><b>24</b></td>
-      <td class="num">20</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ok" style="width:100%"></div></div><span class="progress-pct">160%</span></div></td>
-      <td><span class="status-badge ok">Meta batida</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">4</span></td>
-      <td><b>Moto Mais - Santa Rita</b></td>
-      <td class="num">6</td><td class="num">3</td><td class="num">13</td>
-      <td class="num"><b>22</b></td>
-      <td class="num">35</td>
-      <td class="num">30</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:73%"></div></div><span class="progress-pct">73%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">5</span></td>
-      <td><b>Avelloz JCR - Geisel</b></td>
-      <td class="num">6</td><td class="num">2</td><td class="num">5</td>
-      <td class="num"><b>13</b></td>
-      <td class="num">20</td>
-      <td class="num">20</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:65%"></div></div><span class="progress-pct">65%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">6</span></td>
-      <td><b>Avelloz JCR - Mangabeira</b></td>
-      <td class="num">7</td><td class="num">2</td><td class="num">3</td>
-      <td class="num"><b>12</b></td>
-      <td class="num">20</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:80%"></div></div><span class="progress-pct">80%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">7</span></td>
-      <td><b>Casa das Cinquentinhas - BN</b></td>
-      <td class="num">4</td><td class="num">3</td><td class="num">3</td>
-      <td class="num"><b>10</b></td>
-      <td class="num">15</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:67%"></div></div><span class="progress-pct">67%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">8</span></td>
-      <td><b>Locagora - VMO</b></td>
-      <td class="num">9</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>9</b></td>
-      <td class="num">15</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:60%"></div></div><span class="progress-pct">60%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">9</span></td>
-      <td><b>Matuto Motos - Alagoa Grande</b></td>
-      <td class="num">1</td><td class="num">1</td><td class="num">6</td>
-      <td class="num"><b>8</b></td>
-      <td class="num">15</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:53%"></div></div><span class="progress-pct">53%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">10</span></td>
-      <td><b>Grupo Chaves - Itaporanga</b></td>
-      <td class="num">4</td><td class="num">3</td><td class="num">1</td>
-      <td class="num"><b>8</b></td>
-      <td class="num">0</td>
-      <td class="num">5</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ok" style="width:100%"></div></div><span class="progress-pct">160%</span></div></td>
-      <td><span class="status-badge ok">Meta batida</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">11</span></td>
-      <td><b>Avelloz Queimadas</b></td>
-      <td class="num">2</td><td class="num">3</td><td class="num">3</td>
-      <td class="num"><b>8</b></td>
-      <td class="num">10</td>
-      <td class="num">5</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ok" style="width:100%"></div></div><span class="progress-pct">160%</span></div></td>
-      <td><span class="status-badge ok">Meta batida</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">12</span></td>
-      <td><b>AC Motos - Esperança</b></td>
-      <td class="num">2</td><td class="num">3</td><td class="num">0</td>
-      <td class="num"><b>5</b></td>
-      <td class="num">40</td>
-      <td class="num">30</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:17%"></div></div><span class="progress-pct">17%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">13</span></td>
-      <td><b>Licitação JS</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">4</td>
-      <td class="num"><b>4</b></td>
-      <td class="num">0</td>
-      <td class="num">0</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ok" style="width:100%"></div></div><span class="progress-pct">100%</span></div></td>
-      <td><span class="status-badge ok">Meta batida</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">14</span></td>
-      <td><b>Elton Motos - GurinhÃ©m</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">3</td>
-      <td class="num"><b>3</b></td>
-      <td class="num">15</td>
-      <td class="num">12</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:25%"></div></div><span class="progress-pct">25%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">15</span></td>
-      <td><b>Grupo Chaves - Cajazeiras</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">3</td>
-      <td class="num"><b>3</b></td>
-      <td class="num">15</td>
-      <td class="num">5</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill warn" style="width:60%"></div></div><span class="progress-pct">60%</span></div></td>
-      <td><span class="status-badge warn">Em progresso</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">16</span></td>
-      <td><b>Grupo Chaves - Pombal</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">10</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">17</span></td>
-      <td><b>Grupo Chaves - São Bento</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">0</td>
-      <td class="num">0</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill " style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge none">Sem movimento</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">18</span></td>
-      <td><b>Casa das Cinquentinhas - PF</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">25</td>
-      <td class="num">25</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">19</span></td>
-      <td><b>LM Motos - Mogeiro e Itabaiana</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">10</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">20</span></td>
-      <td><b>Licitação Sampaio</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">0</td>
-      <td class="num">0</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill " style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge none">Sem movimento</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">21</span></td>
-      <td><b>Locagora - Anderson</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">0</td>
-      <td class="num">0</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill " style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge none">Sem movimento</span></td>
-    </tr><tr>
-      <td><span class="rank-pill ">22</span></td>
-      <td><b>Fabricio - Alhandra</b></td>
-      <td class="num">0</td><td class="num">0</td><td class="num">0</td>
-      <td class="num"><b>0</b></td>
-      <td class="num">15</td>
-      <td class="num">15</td>
-      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill low" style="width:0%"></div></div><span class="progress-pct">0%</span></div></td>
-      <td><span class="status-badge low">Atenção</span></td>
-    </tr></tbody>
+              <tbody></tbody>
             </table>
           </div>
         </div>
@@ -965,7 +587,7 @@ tbody tr:last-child td{border-bottom:none;}
 </div>
 
 <script>
-const REF_DATE = '24/07/2026';
+const REF_DATE = '28/07/2026';
 
 /* ================================================================
    1. CONFIGURAÇÃO DA API (GOOGLE SHEETS)
@@ -1021,10 +643,24 @@ function normalizeRevendedores(list) {
 }
 
 /* ================================================================
+   3.1 BANNER DE STATUS (Única fonte visível de erro/carregamento)
+   ================================================================ */
+function setDataStatus(state, message) {
+  const el = document.getElementById('dataStatusBanner');
+  if (state === 'hidden') { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.className = 'data-status-banner ' + state;
+  el.innerHTML = (state === 'loading' ? '<span class="spin"></span>' : '') + '<span>' + esc(message) + '</span>';
+}
+
+/* ================================================================
    4. FUNÇÃO DE BUSCA DA PLANILHA (SEM CACHE)
    ================================================================ */
 async function loadRemoteData() {
-  if (!DATA_SOURCE.enabled || !DATA_SOURCE.url) return false;
+  if (!DATA_SOURCE.enabled || !DATA_SOURCE.url) {
+    setDataStatus('error', 'Nenhuma fonte de dados configurada (DATA_SOURCE.url vazio).');
+    return false;
+  }
   try {
     const fetchUrl = `${DATA_SOURCE.url}${DATA_SOURCE.url.includes('?') ? '&' : '?'}_=${Date.now()}`;
     const response = await fetch(fetchUrl, { cache: 'no-store' });
@@ -1041,9 +677,11 @@ async function loadRemoteData() {
     if (payload.vendasInternas) VENDAS_INTERNAS = { ...VENDAS_INTERNAS, ...payload.vendasInternas };
 
     console.info('✅ Dados remotos do Google Sheets carregados com sucesso.');
+    setDataStatus('hidden');
     return true;
   } catch (err) {
     console.error('❌ Erro ao buscar dados da planilha:', err);
+    setDataStatus('error', 'Não foi possível carregar os dados da planilha (' + err.message + '). Tentando novamente em 5 min.');
     return false;
   }
 }
@@ -1141,9 +779,9 @@ function renderGeral(){
     kpiCard('AZ1', az1, 'unidades vendidas', PALETTE.az1, ICO.moto),
     kpiCard('AZ125', az125, 'unidades vendidas', PALETTE.az125, ICO.moto),
     kpiCard('AZ160', az160, 'unidades vendidas', PALETTE.az160, ICO.moto),
-    kpiCard('Total Geral', currentUF==='TODOS' ? TOTALS.totalGeral : total, currentUF==='TODOS' ? `PB ${TOTALS.pb} Â· RN ${TOTALS.rn}` : `${fs.length} filiais`, '#3b82f6', ICO.store),
-    kpiCard('PrevisÃ£o', TOTALS.previsao, 'unidades projetadas', '#a855f7', ICO.trend),
-    kpiCard('Meta da Empresa', TOTALS.meta, `Revendas ${TOTALS.revendas} Â· Lojas ${TOTALS.lojas}`, '#22c55e', ICO.target),
+    kpiCard('Total Geral', currentUF==='TODOS' ? TOTALS.totalGeral : total, currentUF==='TODOS' ? `PB ${TOTALS.pb} · RN ${TOTALS.rn}` : `${fs.length} filiais`, '#3b82f6', ICO.store),
+    kpiCard('Previsão', TOTALS.previsao, 'unidades projetadas', '#a855f7', ICO.trend),
+    kpiCard('Meta da Empresa', TOTALS.meta, `Revendas ${TOTALS.revendas} · Lojas ${TOTALS.lojas}`, '#22c55e', ICO.target),
   ].join('');
 
   killChart('modeloShare');
@@ -1208,9 +846,9 @@ document.querySelectorAll('#tblFiliais thead th').forEach(th=>{
 });
 
 /* ================================================================
-   TEMPLATE 2 â€” RESUMO POR FILIAL
+   TEMPLATE 2 — RESUMO POR FILIAL
    ================================================================ */
-let selectedFilial = FILIAIS[0].nome;
+let selectedFilial = null;
 function populateStoreSelect(){
   const fs = filiaisFiltradas();
   if(!fs.find(f=>f.nome===selectedFilial)) selectedFilial = fs[0] ? fs[0].nome : null;
@@ -1228,7 +866,7 @@ document.getElementById('storeSelect').addEventListener('change', e=>{ selectedF
 function renderFilialCharts(){
   populateStoreSelect();
   const f = FILIAIS.find(x=>x.nome===selectedFilial);
-  if(!f){ document.getElementById('kpiRowFilial').innerHTML = `<div class="empty-state">Nenhuma filial disponÃ­vel para este filtro.</div>`; return; }
+  if(!f){ document.getElementById('kpiRowFilial').innerHTML = `<div class="empty-state">Nenhuma filial disponível para este filtro.</div>`; return; }
   const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta-tot,0), p = pct(tot,meta), st = statusOf(tot,meta);
 
   document.getElementById('kpiRowFilial').innerHTML = [
@@ -1243,7 +881,7 @@ function renderFilialCharts(){
   const tb = document.querySelector('#tblVendedores tbody');
   tb.innerHTML = f.vendedores.map(v=>`
     <tr><td><b>${esc(v.nome)}</b></td><td class="num">${v.az1}</td><td class="num">${v.az125}</td><td class="num">${v.az160}</td><td class="num"><b>${v.az1+v.az125+v.az160}</b></td></tr>
-  `).join('') || `<tr><td colspan="5" class="empty-state">Sem vendedores individuais â€” vendas registradas diretamente pela unidade.</td></tr>`;
+  `).join('') || `<tr><td colspan="5" class="empty-state">Sem vendedores individuais — vendas registradas diretamente pela unidade.</td></tr>`;
 
   killChart('vendedoresFilial');
   if(f.vendedores.length){
@@ -1270,7 +908,7 @@ function renderFilialCharts(){
 }
 
 /* ================================================================
-   TEMPLATE 2.5 â€” RANKING
+   TEMPLATE 2.5 — RANKING
    ================================================================ */
 document.querySelectorAll('.subtab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1308,11 +946,11 @@ function renderRankVendedores(){
 }
 function renderRankRevendedores(){
   document.getElementById('kpiRowRankRev').innerHTML = [
-    kpiCard('AZ160CC', REV_HEADER.az160, 'unidades no perÃ­odo', PALETTE.az160, ICO.moto),
-    kpiCard('AZ125CC', REV_HEADER.az125, 'unidades no perÃ­odo', PALETTE.az125, ICO.moto),
-    kpiCard('AZ1 49CC', REV_HEADER.az1, 'unidades no perÃ­odo', PALETTE.az1, ICO.moto),
+    kpiCard('AZ160CC', REV_HEADER.az160, 'unidades no período', PALETTE.az160, ICO.moto),
+    kpiCard('AZ125CC', REV_HEADER.az125, 'unidades no período', PALETTE.az125, ICO.moto),
+    kpiCard('AZ1 49CC', REV_HEADER.az1, 'unidades no período', PALETTE.az1, ICO.moto),
     kpiCard('Total', REV_HEADER.total, 'comprado pela rede', '#3b82f6', ICO.trend),
-    kpiCard('ProjeÃ§Ã£o', REV_HEADER.previsao, 'unidades esperadas', '#a855f7', ICO.trend),
+    kpiCard('Projeção', REV_HEADER.previsao, 'unidades esperadas', '#a855f7', ICO.trend),
     kpiCard('Meta', REV_HEADER.meta, `${pct(REV_HEADER.total,REV_HEADER.meta)}% atingido`, '#22c55e', ICO.target),
   ].join('');
 
@@ -1351,7 +989,7 @@ function renderRankRevendedores(){
 }
 
 /* ================================================================
-   TEMPLATE 3 â€” DETALHAMENTO REVENDEDORES
+   TEMPLATE 3 — DETALHAMENTO REVENDEDORES
    ================================================================ */
 let revSort = {key:'pos', dir:'asc'};
 function renderRevDetail(){
@@ -1361,7 +999,7 @@ function renderRevDetail(){
   const metaBatida = REVENDEDORES.filter(r=>statusOf(r.total,r.meta)==='ok').length;
 
   document.getElementById('kpiRowRevDetail').innerHTML = [
-    kpiCard('Revendedores Ativos', ativos+' / '+REVENDEDORES.length, 'com compras no perÃ­odo', '#3b82f6', ICO.store),
+    kpiCard('Revendedores Ativos', ativos+' / '+REVENDEDORES.length, 'com compras no período', '#3b82f6', ICO.store),
     kpiCard('Total Comprado', totalComprado, 'unidades na rede', PALETTE.az160, ICO.moto),
     kpiCard('Meta da Rede', metaComprado, `${pct(totalComprado,metaComprado)}% atingido`, '#22c55e', ICO.target),
     kpiCard('Metas Batidas', metaBatida, 'revendedores acima da meta', '#a855f7', ICO.trend),
@@ -1425,16 +1063,17 @@ function renderAllCharts(){
   renderRankingActive();
   renderRevDetail();
 }
-async function refreshRemoteData(){
+async function refreshRemoteData(isInitialLoad){
+  if(isInitialLoad) setDataStatus('loading', 'Carregando dados da planilha (Google Sheets)…');
   const loaded = await loadRemoteData();
   if(loaded) renderAllCharts();
+  return loaded;
 }
 (async function init(){
   populateStoreSelect();
-  await refreshRemoteData();
-  setInterval(refreshRemoteData, 5 * 60 * 1000);
+  await refreshRemoteData(true);
+  setInterval(() => refreshRemoteData(false), 5 * 60 * 1000);
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body></html>
-
