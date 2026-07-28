@@ -1042,15 +1042,29 @@ function applyRevFilters(){
   }).join('') || `<tr><td colspan="10" class="empty-state">Nenhum revendedor encontrado para os filtros aplicados.</td></tr>`;
 }
 // Adiciona os eventos de filtro com proteção contra elementos nulos
+/* ================================================================
+   ORDENAÇÃO DAS TABELAS (CORRIGIDO)
+   ================================================================ */
+document.querySelectorAll('#tblFiliais thead th').forEach((th) => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.key;
+    if (!k) return;
+    // CORRIGIDO: alterado ';' para '&&'
+    filiaisSort.dir = (filiaisSort.key === k && filiaisSort.dir === 'desc') ? 'asc' : 'desc';
+    filiaisSort.key = k;
+    renderFiliaisTable(filiaisFiltradas());
+  });
+});
+
 document.getElementById('revSearch')?.addEventListener('input', applyRevFilters);
 document.getElementById('revStatusFilter')?.addEventListener('change', applyRevFilters);
 document.getElementById('revSortSelect')?.addEventListener('change', applyRevFilters);
 
-// Adiciona o evento de ordenação da tabela de revendedores
-document.querySelectorAll('#tblRevDetail thead th').forEach(th => {
+document.querySelectorAll('#tblRevDetail thead th').forEach((th) => {
   th.addEventListener('click', () => {
     const k = th.dataset.key;
     if (!k) return;
+    // CORRIGIDO: alterado ';' para '&&'
     revSort.dir = (revSort.key === k && revSort.dir === 'desc') ? 'asc' : 'desc';
     revSort.key = k;
     
@@ -1063,23 +1077,33 @@ document.querySelectorAll('#tblRevDetail thead th').forEach(th => {
 });
 
 /* ================================================================
-   INIT
+   INICIALIZAÇÃO & REFRESH DA API
    ================================================================ */
-function renderAllCharts(){
+function renderAllCharts() {
   renderGeral();
   renderFilialCharts();
   renderRankingActive();
   renderRevDetail();
 }
-async function refreshRemoteData(isInitialLoad){
-  if(isInitialLoad) setDataStatus('loading', 'Carregando dados da planilha (Google Sheets)…');
+
+async function refreshRemoteData(isInitialLoad) {
+  if (isInitialLoad && typeof setDataStatus === 'function') {
+    setDataStatus('loading', 'Carregando dados da planilha (Google Sheets)…');
+  }
   const loaded = await loadRemoteData();
-  if(loaded) renderAllCharts();
+  if (loaded) {
+    renderAllCharts();
+  }
   return loaded;
 }
-(async function init(){
-  populateStoreSelect();
+
+(async function init() {
+  if (typeof populateStoreSelect === 'function') {
+    populateStoreSelect();
+  }
   await refreshRemoteData(true);
+  
+  // Atualização automática a cada 5 minutos
   setInterval(() => refreshRemoteData(false), 5 * 60 * 1000);
 })();
 </script>
