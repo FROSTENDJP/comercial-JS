@@ -4,7 +4,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GRUPO JS ” Painel de Vendas &amp; Revendedores</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   // Função para destruir e recriar gráficos do Chart.js sem dar erro
   function killChart(chartInstance) {
@@ -606,12 +605,9 @@ const REF_DATE = '28/07/2026';
    ================================================================ */
 const DATA_SOURCE = {
   enabled: true,
-  url: 'https://script.google.com/macros/s/AKfycbyuuLh9AVN28AvYqJsdR4XJWNkuH5gE70aft56XVsMMMdCUcpsVLRouLe9SrHHMBLlO/exec'
+  url: 'https://script.google.com/macros/s/AKfycbxYMcfOfb02RLVh6XdN0jUQp27OsJCBU-U1WtRwijIdOIjqgJpkH-7kMTWM-9V_Pero/exec'
 };
-
-/* ================================================================
-   2. VARIÁVEIS DO DASHBOARD
-   ================================================================ */
+/
 /* ================================================================
    2. VARIÁVEIS DO DASHBOARD
    ================================================================ */
@@ -677,7 +673,7 @@ function normalizeRevendedores(list) {
     az1: Number(r.az1 || r['AZ1'] || r.az1cc || 0),
     total: Number(r.total || r.qtd || r.compras || 0),
     projecao: Number(r.projecao || r.previsao || 0),
-    meta: Number(r.meta || 0)
+    meta: Number(r.meta || r.cota || 0)
   }));
 }
 
@@ -1021,10 +1017,10 @@ function renderFilialCharts(){
     killChart('metasFilial');
     CHARTS.metasFilial = new Chart(cMeta, {
       type:'bar',
-      data:{ labels:['AZ1','AZ125','AZ160'],
+      data:{ labels:['Total'],
         datasets:[
-          { label:'Vendido', data:[az1S,az125S,az160S], backgroundColor:'#3b82f6', borderRadius:6, maxBarThickness:42 },
-          { label:'Meta', data:[az1M,az125M,az160M], backgroundColor:'#f0b429', borderRadius:6, maxBarThickness:42 },
+          { label:'Vendido', data:[tot], backgroundColor:'#3b82f6', borderRadius:6, maxBarThickness:42 },
+          { label:'Meta', data:[meta], backgroundColor:'#f0b429', borderRadius:6, maxBarThickness:42 },
         ] },
       options:{ maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:12}}}, scales:{ x:{ticks:{color:themeColors().text}, grid:{display:false}}, y:{ticks:{color:themeColors().text}, grid:{color:themeColors().grid}} } }
     });
