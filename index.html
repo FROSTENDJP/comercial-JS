@@ -5,18 +5,16 @@
 <title>GRUPO JS ” Painel de Vendas &amp; Revendedores</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-  // Paleta de Cores Global
-  window.PALETTE = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#ef4444', '#eab308'];
-  var PALETTE = window.PALETTE;
-
-  // Destruidor de Gráficos Global
-  window.killChart = function(chartInstance) {
+  // Função para destruir e recriar gráficos do Chart.js sem dar erro
+  function killChart(chartInstance) {
     if (chartInstance && typeof chartInstance.destroy === 'function') {
       chartInstance.destroy();
     }
-  };
+  }
+</script>
   var killChart = window.killChart;
 </script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -615,6 +613,16 @@ const DATA_SOURCE = {
 /* ================================================================
    2. VARIÁVEIS DO DASHBOARD
    ================================================================ */
+/* ================================================================
+   2. VARIÁVEIS DO DASHBOARD
+   ================================================================ */
+const PALETTE = {
+  az1: '#ff6b00',
+  az125: '#f59e0b',
+  az160: '#3b82f6',
+  bars: ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#ec4899', '#8b5cf6']
+};
+
 let TOTALS = { az1: 0, az125: 0, az160: 0, totalGeral: 0, pb: 0, rn: 0, revendas: 0, lojas: 0, previsao: 0, meta: 0 };
 let FILIAIS = [];
 let RANK_LOJAS = [];
@@ -624,7 +632,6 @@ let REVENDEDORES = [];
 let MOTOS_COMPRADAS = { az1: 0, az160: 0, az125: 0 };
 let VENDAS_INTERNAS = { marcelo: 0, lojas: 0 };
 let CHARTS = {};
-
 /* ================================================================
    3. HELPERS & NORMALIZADORES ROBUSTOS DE DADOS
    ================================================================ */
@@ -790,12 +797,7 @@ function esc(s) { return String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;',
 function killChart(id) { if (CHARTS[id]) { CHARTS[id].destroy(); delete CHARTS[id]; } }
 function themeColors() { return { text: '#64748b', grid: '#e2e8f0' }; }
 
-const PALETTE = {
-  az1: '#ff6b00',
-  az125: '#f59e0b',
-  az160: '#3b82f6',
-  bars: ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#ec4899', '#8b5cf6']
-};
+
 
 /* ================================================================
    NAVIGATION
