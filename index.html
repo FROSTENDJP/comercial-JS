@@ -1041,15 +1041,23 @@ function applyRevFilters(){
     </tr>`;
   }).join('') || `<tr><td colspan="10" class="empty-state">Nenhum revendedor encontrado para os filtros aplicados.</td></tr>`;
 }
-document.getElementById('revSearch').addEventListener('input', applyRevFilters);
-document.getElementById('revStatusFilter').addEventListener('change', applyRevFilters);
-document.getElementById('revSortSelect').addEventListener('change', applyRevFilters);
-document.querySelectorAll('#tblRevDetail thead th').forEach(th=>{
-  th.addEventListener('click', ()=>{
-    const k = th.dataset.key; if(!k) return;
-    revSort.dir = (revSort.key===k && revSort.dir==='desc') ? 'asc' : 'desc';
+// Adiciona os eventos de filtro com proteção contra elementos nulos
+document.getElementById('revSearch')?.addEventListener('input', applyRevFilters);
+document.getElementById('revStatusFilter')?.addEventListener('change', applyRevFilters);
+document.getElementById('revSortSelect')?.addEventListener('change', applyRevFilters);
+
+// Adiciona o evento de ordenação da tabela de revendedores
+document.querySelectorAll('#tblRevDetail thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.key;
+    if (!k) return;
+    revSort.dir = (revSort.key === k && revSort.dir === 'desc') ? 'asc' : 'desc';
     revSort.key = k;
-    document.getElementById('revSortSelect').value = (k==='total'?'total':k==='pct'?'pct':k==='nome'?'nome':'pos');
+    
+    const sortSelect = document.getElementById('revSortSelect');
+    if (sortSelect) {
+      sortSelect.value = (k === 'total' ? 'total' : k === 'pct' ? 'pct' : k === 'nome' ? 'nome' : 'pos');
+    }
     applyRevFilters();
   });
 });
