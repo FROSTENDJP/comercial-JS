@@ -965,187 +965,104 @@ tbody tr:last-child td{border-bottom:none;}
 </div>
 
 <script>
-/* ================================================================
-   DADOS â€” GRUPO JS (base: apuraÃ§Ã£o de vendas em 24/07/2026)
-   ================================================================ */
 const REF_DATE = '24/07/2026';
 
+/* ================================================================
+   1. CONFIGURAÇÃO DA API (GOOGLE SHEETS)
+   ================================================================ */
 const DATA_SOURCE = {
   enabled: true,
   url: 'https://script.google.com/macros/s/AKfycbyuuLh9AVN28AvYqJsdR4XJWNkuH5gE70aft56XVsMMMdCUcpsVLRouLe9SrHHMBLlO/exec'
 };
 
-const DEFAULT_TOTALS = {
-  az1:174, az125:73, az160:105,
-  totalGeral:358, pb:260, rn:98,
-  revendas:270, lojas:88,
-  previsao:345, meta:312
-};
-let TOTALS = { ...DEFAULT_TOTALS };
-
-// Filiais: sold/meta por modelo + vendedores
-const DEFAULT_FILIAIS = [
-  { nome:'Beira Rio', uf:'PB', az1:{sold:3,meta:20}, az125:{sold:1,meta:25}, az160:{sold:5,meta:30},
-    vendedores:[{nome:'Marcineide',az1:0,az125:0,az160:2},{nome:'Eduardo',az1:3,az125:1,az160:3}] },
-  { nome:'Sapé', uf:'PB', az1:{sold:4,meta:15}, az125:{sold:1,meta:20}, az160:{sold:3,meta:25},
-    vendedores:[{nome:'Nilton',az1:1,az125:0,az160:1},{nome:'Silmara',az1:3,az125:1,az160:2}] },
-  { nome:'João Pessoa (Matriz)', uf:'PB', az1:{sold:2,meta:25}, az125:{sold:3,meta:30}, az160:{sold:8,meta:35},
-    vendedores:[{nome:'Sue',az1:0,az125:1,az160:4},{nome:'Luiza',az1:1,az125:2,az160:2},{nome:'Raniere',az1:1,az125:0,az160:2},{nome:'Joalison',az1:0,az125:0,az160:0}] },
-  { nome:'São Bento', uf:'PB', az1:{sold:1,meta:15}, az125:{sold:0,meta:20}, az160:{sold:0,meta:25},
-    vendedores:[{nome:'Ritinha',az1:1,az125:0,az160:0},{nome:'Vanessa',az1:0,az１２５:0,az１６０:0}] },
-  { nome:'Pombal', uf:'PB', az1:{sold:1,meta:15}, az125:{sold:0,meta:20}, az160:{sold:0,meta:25},
-    vendedores:[{nome:'Antares',az1:1,az125:0,az160:0}] },
-  { nome:'Mamanguape', uf:'PB', az1:{sold:12,meta:20}, az125:{sold:5,meta:25}, az160:{sold:2,meta:30},
-    vendedores:[{nome:'Heitor',az1:8,az125:2,az160:2},{nome:'Jeferson',az1:3,az125:2,az160:0},{nome:'Natalia',az1:1,az125:1,az160:0}] },
-  { nome:'Guarabira', uf:'PB', az1:{sold:4,meta:15}, az125:{sold:2,meta:20}, az160:{sold:2,meta:25},
-    vendedores:[{nome:'Heloisa',az1:4,az125:2,az160:2},{nome:'Stephanny',az1:0,az125:0,az160:0}] },
-  { nome:'Patos (Centro)', uf:'PB', az1:{sold:3,meta:30}, az125:{sold:1,meta:35}, az160:{sold:6,meta:40},
-    vendedores:[{nome:'Andressa',az1:1,az125:1,az160:3},{nome:'Livia',az1:2,az125:0,az160:3}] },
-  { nome:'Patos (CD)', uf:'PB', az1:{sold:4,meta:10}, az125:{sold:0,meta:10}, az160:{sold:0,meta:10},
-    vendedores:[{nome:'Micaele',az1:0,az125:0,az160:0},{nome:'Aline',az1:4,az125:0,az160:0}] },
-  { nome:'Marcelo (Loja Propria) - PB', uf:'PB', az1:{sold:82,meta:150}, az125:{sold:35,meta:120}, az160:{sold:63,meta:112},
-    vendedores:[] },
-  { nome:'Parnamirim (Matriz)', uf:'RN', az1:{sold:1,meta:10}, az125:{sold:0,meta:15}, az160:{sold:0,meta:20},
-    vendedores:[{nome:'Karla',az1:1,az125:0,az160:0},{nome:'Sammyris',az1:0,az125:0,az160:0}] },
-  { nome:'Parnamirim (Filial)', uf:'RN', az1:{sold:3,meta:10}, az125:{sold:0,meta:15}, az160:{sold:1,meta:20},
-    vendedores:[{nome:'Thayna',az1:3,az125:0,az160:0},{nome:'Stephany',az1:0,az125:0,az160:1}] },
-  { nome:'Natal', uf:'RN', az1:{sold:3,meta:10}, az125:{sold:2,meta:15}, az160:{sold:1,meta:20},
-    vendedores:[{nome:'Juliane',az1:2,az125:1,az160:0},{nome:'Vitoria',az1:1,az125:1,az160:1}] },
-  { nome:'Marcelo (Loja Propria) - RN', uf:'RN', az1:{sold:51,meta:150}, az125:{sold:22,meta:150}, az160:{sold:14,meta:150},
-    vendedores:[] },
-];
-
-// Ranking â€” vendas por loja (grÃ¡fico consolidado)
-const DEFAULT_RANK_LOJAS = [
-  {nome:'Mamanguape', qtd:21}, {nome:'João Pessoa (Matriz)', qtd:12}, {nome:'Patos (Centro)', qtd:10},
-  {nome:'João Pessoa (Beira Rio)', qtd:8}, {nome:'Sapé', qtd:8}, {nome:'Guarabira', qtd:7},
-  {nome:'Natal', qtd:6}, {nome:'Pombal', qtd:5}, {nome:'Parnamirim (Centro)', qtd:5},
-  {nome:'Patos (CD)', qtd:3}, {nome:'São Bento', qtd:2},
-];
-let RANK_LOJAS = DEFAULT_RANK_LOJAS;
-
-// Ranking — vendas por vendedor
-const DEFAULT_RANK_VENDEDORES = [
-  {nome:'Heitor',qtd:11},{nome:'Silmara',qtd:6},{nome:'Macineide',qtd:5},{nome:'Raniere',qtd:5},
-  {nome:'Maria Natalia',qtd:5},{nome:'Livia',qtd:5},{nome:'Heloisa',qtd:5},{nome:'Andressa',qtd:5},
-  {nome:'Jeferson',qtd:5},{nome:'Natalia',qtd:5},{nome:'Sue Ellen',qtd:4},{nome:'Thaina',qtd:4},
-  {nome:'Luiza',qtd:3},{nome:'Vitoria',qtd:3},{nome:'Jose Eduardo',qtd:3},{nome:'Aline',qtd:3},
-  {nome:'Juliane',qtd:3},{nome:'Nilton',qtd:2},{nome:'Stefany',qtd:2},{nome:'Vanessa',qtd:1},
-  {nome:'Rita de Cassia',qtd:1},{nome:'Estefany',qtd:1},
-];
-
-// Revendedores — dados completos (ranking / detalhamento)
-const DEFAULT_REV_HEADER = { az160:63, az125:35, az1:85, total:183, previsao:345, meta:312 };
-let REV_HEADER = { ...DEFAULT_REV_HEADER };
-const DEFAULT_REVENDEDORES = [
-  {pos:1, nome:'Sou Mais Motos - Sousa', az160:4, az125:4, az1:22, total:30, projecao:5, meta:5},
-  {pos:2, nome:'Realliza Motos - CG', az160:12, az125:3, az1:9, total:24, projecao:60, meta:55},
-  {pos:3, nome:'Grupo Chaves - Bayeux', az160:6, az125:8, az1:10, total:24, projecao:20, meta:15},
-  {pos:4, nome:'Moto Mais - Santa Rita', az160:6, az125:3, az1:13, total:22, projecao:35, meta:30},
-  {pos:5, nome:'Avelloz JCR - Geisel', az160:6, az125:2, az1:5, total:13, projecao:20, meta:20},
-  {pos:6, nome:'Avelloz JCR - Mangabeira', az160:7, az125:2, az1:3, total:12, projecao:20, meta:15},
-  {pos:7, nome:'Casa das Cinquentinhas - BN', az160:4, az125:3, az1:3, total:10, projecao:15, meta:15},
-  {pos:8, nome:'Locagora - VMO', az160:9, az125:0, az1:0, total:9, projecao:15, meta:15},
-  {pos:9, nome:'Matuto Motos - Alagoa Grande', az160:1, az125:1, az1:6, total:8, projecao:15, meta:15},
-  {pos:10, nome:'Grupo Chaves - Itaporanga', az160:4, az125:3, az1:1, total:8, projecao:0, meta:5},
-  {pos:11, nome:'Avelloz Queimadas', az160:2, az125:3, az1:3, total:8, projecao:10, meta:5},
-  {pos:12, nome:'AC Motos - Esperança', az160:2, az125:3, az1:0, total:5, projecao:40, meta:30},
-  {pos:13, nome:'Licitação JS', az160:0, az125:0, az1:4, total:4, projecao:0, meta:0},
-  {pos:14, nome:'Elton Motos - Gurinhém', az160:0, az125:0, az1:3, total:3, projecao:15, meta:12},
-  {pos:15, nome:'Grupo Chaves - Cajazeiras', az160:0, az125:0, az1:3, total:3, projecao:15, meta:5},
-  {pos:16, nome:'Grupo Chaves - Pombal', az160:0, az125:0, az1:0, total:0, projecao:10, meta:15},
-  {pos:17, nome:'Grupo Chaves - São Bento', az160:0, az125:0, az1:0, total:0, projecao:0, meta:0},
-  {pos:18, nome:'Casa das Cinquentinhas - PF', az160:0, az125:0, az1:0, total:0, projecao:25, meta:25},
-  {pos:19, nome:'LM Motos - Mogeiro e Itabaiana', az160:0, az125:0, az1:0, total:0, projecao:10, meta:15},
-  {pos:20, nome:'LicitaÃ§Ã£o Sampaio', az160:0, az125:0, az1:0, total:0, projecao:0, meta:0},
-  {pos:21, nome:'Locagora - Anderson', az160:0, az125:0, az1:0, total:0, projecao:0, meta:0},
-  {pos:22, nome:'Fabricio - Alhandra', az160:0, az125:0, az1:0, total:0, projecao:15, meta:15},
-];
-
-const DEFAULT_MOTOS_COMPRADAS = { az1:47, az160:34, az125:19 };
-let MOTOS_COMPRADAS = { ...DEFAULT_MOTOS_COMPRADAS };
-const DEFAULT_VENDAS_INTERNAS = { marcelo:74, lojas:26 };
-let VENDAS_INTERNAS = { ...DEFAULT_VENDAS_INTERNAS };
-let RANK_VENDEDORES = DEFAULT_RANK_VENDEDORES;
-let REVENDEDORES = DEFAULT_REVENDEDORES;
+/* ================================================================
+   2. VARIÁVEIS DO DASHBOARD (INICIADAS VAZIAS)
+   ================================================================ */
+let TOTALS = { az1: 0, az125: 0, az160: 0, totalGeral: 0, pb: 0, rn: 0, revendas: 0, lojas: 0, previsao: 0, meta: 0 };
+let FILIAIS = [];
+let RANK_LOJAS = [];
+let RANK_VENDEDORES = [];
+let REV_HEADER = { az160: 0, az125: 0, az1: 0, total: 0, previsao: 0, meta: 0 };
+let REVENDEDORES = [];
+let MOTOS_COMPRADAS = { az1: 0, az160: 0, az125: 0 };
+let VENDAS_INTERNAS = { marcelo: 0, lojas: 0 };
 
 /* ================================================================
-   HELPERS
+   3. HELPERS & NORMALIZADORES DE DADOS
    ================================================================ */
-function pct(sold, meta){ if(!meta) return sold>0 ? 100 : 0; return Math.round((sold/meta)*100); }
-function normalizeFiliais(list){
-  if(!Array.isArray(list)) return DEFAULT_FILIAIS;
-  return list.map(f=>({
-    ...f,
-    az1: f.az1 && typeof f.az1 === 'object' ? { sold:Number(f.az1.sold||0), meta:Number(f.az1.meta||0) } : { sold:Number(f.az1_sold||0), meta:Number(f.az1_meta||0) },
-    az125: f.az125 && typeof f.az125 === 'object' ? { sold:Number(f.az125.sold||0), meta:Number(f.az125.meta||0) } : { sold:Number(f.az125_sold||0), meta:Number(f.az125_meta||0) },
-    az160: f.az160 && typeof f.az160 === 'object' ? { sold:Number(f.az160.sold||0), meta:Number(f.az160.meta||0) } : { sold:Number(f.az160_sold||0), meta:Number(f.az160_meta||0) },
-    vendedores: Array.isArray(f.vendedores) ? f.vendedores.map(v=>({ ...v })) : []
+function pct(sold, meta) { if (!meta) return sold > 0 ? 100 : 0; return Math.round((sold / meta) * 100); }
+
+function normalizeFiliais(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(f => ({
+    nome: f.nome || '',
+    uf: f.uf || '',
+    az1: f.az1 && typeof f.az1 === 'object' ? { sold: Number(f.az1.sold || 0), meta: Number(f.az1.meta || 0) } : { sold: Number(f.az1 || 0), meta: 0 },
+    az125: f.az125 && typeof f.az125 === 'object' ? { sold: Number(f.az125.sold || 0), meta: Number(f.az125.meta || 0) } : { sold: Number(f.az125 || 0), meta: 0 },
+    az160: f.az160 && typeof f.az160 === 'object' ? { sold: Number(f.az160.sold || 0), meta: Number(f.az160.meta || 0) } : { sold: Number(f.az160 || 0), meta: 0 },
+    total: Number(f.total || 0),
+    meta: Number(f.meta || 0),
+    vendedores: Array.isArray(f.vendedores) ? f.vendedores.map(v => ({ ...v })) : []
   }));
 }
-function normalizeRevendedores(list){
-  if(!Array.isArray(list)) return DEFAULT_REVENDEDORES;
-  return list.map(r=>({
+
+function normalizeRevendedores(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((r, idx) => ({
     ...r,
-    pos:Number(r.pos||0),
-    az160:Number(r.az160||0),
-    az125:Number(r.az125||0),
-    az1:Number(r.az1||0),
-    total:Number(r.total||0),
-    projecao:Number(r.projecao||0),
-    meta:Number(r.meta||0)
+    pos: Number(r.pos || idx + 1),
+    az160: Number(r.az160 || 0),
+    az125: Number(r.az125 || 0),
+    az1: Number(r.az1 || 0),
+    total: Number(r.total || 0),
+    projecao: Number(r.projecao || 0),
+    meta: Number(r.meta || 0)
   }));
 }
-async function loadRemoteData(){
-  if(!DATA_SOURCE.enabled || !DATA_SOURCE.url || DATA_SOURCE.url.includes('SEU_ID')) return false;
-  try{
-    const url = `${DATA_SOURCE.url}${DATA_SOURCE.url.includes('?') ? '&' : '?'}_=${Date.now()}`;
-    const response = await fetch(url, { cache: 'no-store' });
-    if(!response.ok) throw new Error(`Erro ${response.status}`);
+
+/* ================================================================
+   4. FUNÇÃO DE BUSCA DA PLANILHA (SEM CACHE)
+   ================================================================ */
+async function loadRemoteData() {
+  if (!DATA_SOURCE.enabled || !DATA_SOURCE.url) return false;
+  try {
+    const fetchUrl = `${DATA_SOURCE.url}${DATA_SOURCE.url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+    const response = await fetch(fetchUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
 
-    if(payload.totals) TOTALS = { ...TOTALS, ...payload.totals };
-    if(payload.filiais) FILIAIS = normalizeFiliais(payload.filiais);
-    if(payload.rankLojas) RANK_LOJAS = payload.rankLojas;
-    if(payload.rankVendedores) RANK_VENDEDORES = payload.rankVendedores;
-    if(payload.revHeader) REV_HEADER = { ...REV_HEADER, ...payload.revHeader };
-    if(payload.revendedores) REVENDEDORES = normalizeRevendedores(payload.revendedores);
-    if(payload.motosCompradas) MOTOS_COMPRADAS = { ...MOTOS_COMPRADAS, ...payload.motosCompradas };
-    if(payload.vendasInternas) VENDAS_INTERNAS = { ...VENDAS_INTERNAS, ...payload.vendasInternas };
+    if (payload.totals) TOTALS = { ...TOTALS, ...payload.totals };
+    if (payload.filiais) FILIAIS = normalizeFiliais(payload.filiais);
+    if (payload.rankLojas) RANK_LOJAS = payload.rankLojas;
+    if (payload.rankVendedores) RANK_VENDEDORES = payload.rankVendedores;
+    if (payload.revHeader) REV_HEADER = { ...REV_HEADER, ...payload.revHeader };
+    if (payload.revendedores) REVENDEDORES = normalizeRevendedores(payload.revendedores);
+    if (payload.motosCompradas) MOTOS_COMPRADAS = { ...MOTOS_COMPRADAS, ...payload.motosCompradas };
+    if (payload.vendasInternas) VENDAS_INTERNAS = { ...VENDAS_INTERNAS, ...payload.vendasInternas };
 
-    console.info('Dados remotos carregados com sucesso.');
+    console.info('✅ Dados remotos do Google Sheets carregados com sucesso.');
     return true;
-  } catch(err){
-    console.warn('Não foi possível carregar os dados remotos. Usando os valores embutidos.', err);
+  } catch (err) {
+    console.error('❌ Erro ao buscar dados da planilha:', err);
     return false;
   }
 }
-function statusOf(sold, meta){
-  if(!meta && !sold) return 'none';
+
+/* ================================================================
+   5. FUNÇÕES AUXILIARES DE ESTADO
+   ================================================================ */
+function statusOf(sold, meta) {
+  if (!meta && !sold) return 'none';
   const p = pct(sold, meta);
-  if(p>=100) return 'ok';
-  if(p>=50) return 'warn';
+  if (p >= 100) return 'ok';
+  if (p >= 50) return 'warn';
   return 'low';
 }
-function statusLabel(s){ return {ok:'Meta batida', warn:'Em progresso', low:'AtenÃ§Ã£o', none:'Sem movimento'}[s]; }
-function fillClass(s){ return {ok:'ok', warn:'warn', low:'low', none:''}[s]; }
-function filialTotal(f){ return f.az1.sold + f.az125.sold + f.az160.sold; }
-function filialMeta(f){ return f.az1.meta + f.az125.meta + f.az160.meta; }
-function esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-
-function themeColors(){
-  return {
-    text: '#5b6680',
-    grid: '#e2e7f0',
-    panel: '#ffffff',
-  };
-}
-const PALETTE = { az1:'#14b8a6', az125:'#22c55e', az160:'#f0b429', blue:'#3b82f6', gold:'#f0b429', red:'#ef4444',
-  bars:['#3b82f6','#14b8a6','#f0b429','#22c55e','#a855f7','#ef4444','#0ea5e9','#f97316','#eab308','#8b5cf6','#06b6d4'] };
-
-let CHARTS = {};
-function killChart(id){ if(CHARTS[id]){ CHARTS[id].destroy(); delete CHARTS[id]; } }
-
+function statusLabel(s) { return { ok: 'Meta batida', warn: 'Em progresso', low: 'Atenção', none: 'Sem movimento' }[s] || ''; }
+function fillClass(s) { return { ok: 'ok', warn: 'warn', low: 'low', none: '' }[s] || ''; }
+function filialTotal(f) { return (f.az1?.sold || 0) + (f.az125?.sold || 0) + (f.az160?.sold || 0) || Number(f.total || 0); }
+function filialMeta(f) { return (f.az1?.meta || 0) + (f.az125?.meta || 0) + (f.az160?.meta || 0) || Number(f.meta || 0); }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 /* ================================================================
    NAVIGATION ” sidebar / views
    ================================================================ */
