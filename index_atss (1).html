@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRUPO JS ” Painel de Vendas &amp; Revendedores</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ============ THEME TOKENS — Laranja Energético + Azul Marinho ============ */
+:root{
+  --radius-lg:16px; --radius-md:12px; --radius-sm:8px;
+  /* Destaque principal */
+  --gold:#FF6B00; --gold-2:#E65100; --gold-soft:#FFF3E0;
+  --orange:#FF6B00; --orange-deep:#E65100; --orange-soft:#FFF3E0;
+  /* Contraste / leitura */
+  --navy:#0A192F; --navy-2:#1E293B;
+  --blue:#0A192F; --blue-soft:rgba(10,25,47,.10);
+  --teal:#0D9488; --teal-soft:rgba(13,148,136,.12);
+  --green:#16A34A; --green-soft:rgba(22,163,74,.12);
+  --red:#DC2626; --red-soft:rgba(220,38,38,.12);
+  --amber:#F59E0B;
+  --btn-primary-bg:var(--gold);
+  --btn-primary-fg:#FFFFFF;
+  --btn-secondary-fg:var(--gold);
+  --btn-secondary-border:var(--gold);
+}
+html[data-theme="light"]{
+  --bg:#F8FAFC; --bg-grad:radial-gradient(ellipse 1100px 640px at 12% -8%, #FFF3E0 0%, #F8FAFC 52%);
+  --panel:#FFFFFF; --panel-2:#F8FAFC; --panel-3:#FFF3E0;
+  --border:#FFD8B0; --border-soft:#FFE8D1;
+  --text:#0A192F; --text-mut:#1E293B; --text-dim:#64748B;
+  --shadow:0 14px 36px -22px rgba(10,25,47,.22);
+  --scrollbar:#CBD5E1;
+}
+.data-status-banner{
+  display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:var(--radius-md);
+  font-size:13px; font-weight:700; border:1px solid transparent;
+}
+.data-status-banner.loading{background:var(--panel-3); border-color:var(--border); color:var(--text-mut);}
+.data-status-banner.error{background:var(--red-soft); border-color:var(--red); color:var(--red);}
+.data-status-banner .spin{width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg-grad), var(--bg);
+  color:var(--text); font-family:'Inter',sans-serif;
+  min-height:100vh; overflow-x:hidden;
+  transition:background .25s ease, color .25s ease;
+}
+::-webkit-scrollbar{height:8px; width:8px;}
+::-webkit-scrollbar-thumb{background:var(--scrollbar); border-radius:8px;}
+h1,h2,h3,.disp{font-family:'Barlow Condensed',sans-serif;}
+a{color:inherit;}
+button{font-family:inherit;}
+
+/* ============ LAYOUT SHELL ============ */
+.app{display:flex; min-height:100vh;}
+
+/* ---- SIDEBAR ---- */
+.sidebar{
+  width:250px; flex-shrink:0; background:var(--panel);
+  border-right:1px solid var(--border); display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; z-index:40; transition:transform .25s ease, width .25s ease;
+}
+.sb-brand{
+  display:flex; align-items:center; gap:12px; padding:22px 20px 18px;
+  border-bottom:1px solid var(--border-soft);
+}
+.sb-brand .mark{width:42px; height:42px; flex-shrink:0;}
+.sb-brand .mark svg{width:100%; height:100%;}
+.sb-brand .txt .name{font-size:20px; font-weight:800; letter-spacing:.02em; color:var(--gold); line-height:1;}
+.sb-brand .txt .sub{font-size:9.5px; letter-spacing:.28em; color:var(--text-mut); font-weight:700; text-transform:uppercase;}
+
+.sb-nav{flex:1; padding:16px 12px; display:flex; flex-direction:column; gap:4px; overflow-y:auto;}
+.sb-section-lbl{font-size:10.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--text-dim); padding:14px 12px 6px;}
+.nav-item{
+  display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:10px;
+  color:var(--text-mut); cursor:pointer; font-size:14px; font-weight:600; border:1px solid transparent;
+  transition:.15s;
+}
+.nav-item svg{width:18px; height:18px; flex-shrink:0; opacity:.85;}
+.nav-item:hover{background:var(--panel-2); color:var(--text);}
+.nav-item.active{
+  background:var(--gold-soft);
+  border-color:var(--gold); color:var(--gold-2);
+}
+.nav-item.active svg{opacity:1; color:var(--gold);}
+.nav-item .badge{
+  margin-left:auto; font-size:10px; font-weight:800; background:var(--panel-3); color:var(--text-mut);
+  padding:2px 7px; border-radius:20px; border:1px solid var(--border);
+}
+.nav-item.active .badge{background:rgba(255,107,0,.18); color:var(--gold-2); border-color:transparent;}
+
+.sb-foot{padding:14px 16px 20px; border-top:1px solid var(--border-soft); display:flex; flex-direction:column; gap:10px;}
+.sb-meta{font-size:10.5px; color:var(--text-dim); text-align:center; letter-spacing:.02em;}
+
+/* mobile sidebar */
+.sb-close, .hamburger{display:none;}
+.sb-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:35;}
+@media(max-width:960px){
+  .sidebar{position:fixed; left:0; top:0; transform:translateX(-104%); box-shadow:0 0 60px rgba(0,0,0,.5);}
+  .sidebar.open{transform:translateX(0);}
+  .sb-overlay.show{display:block;}
+  .sb-close{display:flex; margin-left:auto; background:var(--panel-2); border:1px solid var(--border); color:var(--text-mut); width:28px; height:28px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer;}
+  .hamburger{display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; background:var(--panel-2); border:1px solid var(--border); color:var(--text); cursor:pointer; flex-shrink:0;}
+  .hamburger svg{width:19px; height:19px;}
+}
+
+/* ---- MAIN ---- */
+.main{flex:1; min-width:0; display:flex; flex-direction:column;}
+.topbar{
+  display:flex; align-items:center; gap:16px; padding:16px 26px;
+  background:var(--panel); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;
+  flex-wrap:wrap;
+}
+.tb-title{display:flex; flex-direction:column; line-height:1.15; margin-right:auto;}
+.tb-title .eyebrow{font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--gold); text-transform:uppercase;}
+.tb-title h1{font-size:24px; font-weight:800; color:var(--text);}
+.tb-date{
+  display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border);
+  padding:8px 14px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--text-mut);
+}
+.tb-date svg{width:14px; height:14px; color:var(--gold);}
+.tb-date b{color:var(--text); font-weight:800;}
+.uf-select{
+  background:var(--panel); border:1px solid var(--border); color:var(--text); font-weight:700; font-size:12.5px;
+  padding:8px 12px; border-radius:10px; cursor:pointer; font-family:'Inter',sans-serif;
+}
+.uf-select:focus{outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(255,107,0,.18);}
+
+.content{padding:22px 26px 60px; display:flex; flex-direction:column; gap:22px; max-width:1600px; width:100%; margin:0 auto;}
+.view{display:none;}
+.view.active{display:flex; flex-direction:column; gap:22px; animation:fadeIn .3s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+.view-head{display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+.view-head h2{font-size:26px; font-weight:800;}
+.view-head p{font-size:13.5px; color:var(--text-mut); margin-top:2px;}
+
+/* ---- KPI CARDS ---- */
+.kpi-row{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px;}
+.kpi-card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-md);
+  padding:16px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.kpi-card::before{content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:var(--accent, var(--gold));}
+.kpi-card.featured{
+  background:var(--orange-soft); border-color:var(--gold);
+}
+.kpi-card.featured .lbl, .kpi-card.featured .val, .kpi-card.featured .sub{color:var(--navy);}
+.kpi-card .lbl{font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-mut); display:flex; align-items:center; gap:6px;}
+.kpi-card .lbl svg{width:13px; height:13px; color:var(--navy);}
+.kpi-card .val{font-size:30px; font-weight:800; margin-top:6px; color:var(--text); font-family:'Barlow Condensed',sans-serif;}
+.kpi-card .sub{font-size:11.5px; color:var(--text-dim); margin-top:3px; font-weight:600;}
+
+/* ---- CARD / PANEL ---- */
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 20px; box-shadow:var(--shadow); min-width:0;
+  position:relative; overflow:hidden;
+}
+.card::before{
+  content:''; position:absolute; top:0; left:0; width:100%; height:3px;
+  background:linear-gradient(90deg, var(--gold), var(--gold-2));
+}
+.card.featured{background:var(--orange-soft); border-color:var(--gold);}
+.card.featured .card-title, .card.featured{color:var(--navy);}
+
+/* ---- BOTÕES ---- */
+.btn-primary{
+  background:var(--btn-primary-bg); color:var(--btn-primary-fg); border:none;
+  font-weight:800; font-size:13px; padding:11px 18px; border-radius:10px; cursor:pointer;
+  box-shadow:0 8px 18px -10px rgba(255,107,0,.65);
+  transition:filter .15s ease, transform .15s ease;
+}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-primary:active{transform:translateY(1px);}
+.btn-secondary{
+  background:transparent; color:var(--btn-secondary-fg);
+  border:1.5px solid var(--btn-secondary-border);
+  font-weight:800; font-size:13px; padding:10px 16px; border-radius:10px; cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.btn-secondary:hover{background:var(--gold-soft); color:var(--gold-2);}
+.btn-secondary.navy{color:var(--navy); border-color:var(--navy);}
+.btn-secondary.navy:hover{background:rgba(10,25,47,.06);}
+.card-title{
+  font-size:15.5px; font-weight:800; text-transform:uppercase; letter-spacing:.03em;
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; flex-wrap:wrap;
+}
+.card-title .tag{font-size:11px; font-weight:600; color:var(--text-mut); text-transform:none; letter-spacing:0;}
+.chip{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; letter-spacing:.03em;}
+.chip.gold{background:var(--gold-soft); color:var(--gold-2);}
+.chip.blue{background:var(--blue-soft); color:var(--navy);}
+.chip.green{background:var(--green-soft); color:var(--green);}
+.chip.red{background:var(--red-soft); color:var(--red);}
+.chip.teal{background:var(--teal-soft); color:var(--teal);}
+
+.grid-2{display:grid; grid-template-columns:1.4fr 1fr; gap:18px;}
+.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+.grid-2>*, .grid-3>*{min-width:0;}
+@media(max-width:1100px){ .grid-2,.grid-3{grid-template-columns:1fr;} }
+
+.chart-box{position:relative; width:100%;}
+.chart-h-260{height:260px;} .chart-h-220{height:220px;} .chart-h-320{height:320px;} .chart-h-360{height:360px;}
+
+/* ---- TABLE ---- */
+.tbl-wrap{overflow-x:auto; border-radius:10px; border:1px solid var(--border-soft);}
+table{width:100%; border-collapse:collapse; font-size:13px; min-width:640px;}
+thead th{
+  background:var(--panel-2); text-align:left; padding:10px 12px; font-size:10.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--text-mut); white-space:nowrap; cursor:pointer;
+  border-bottom:1px solid var(--border); user-select:none;
+}
+thead th.num, td.num{text-align:right;}
+thead th:hover{color:var(--gold);}
+thead th .sort-arrow{opacity:.4; font-size:9px; margin-left:3px;}
+tbody td{padding:9px 12px; border-bottom:1px solid var(--border-soft); white-space:nowrap; color:var(--text);}
+tbody tr:hover{background:var(--panel-2);}
+tbody tr:last-child td{border-bottom:none;}
+.rank-pill{
+  display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:7px;
+  background:var(--panel-3); font-weight:800; font-size:12px; color:var(--text-mut); border:1px solid var(--border);
+}
+.rank-pill.top1{background:linear-gradient(135deg,var(--gold-2),var(--gold)); color:#FFFFFF; border-color:transparent;}
+.rank-pill.top2{background:#9aa5b8; color:#1c2436; border-color:transparent;}
+.rank-pill.top3{background:#b9834f; color:#241304; border-color:transparent;}
+
+.progress-track{width:100%; min-width:90px; height:7px; border-radius:20px; background:var(--panel-3); overflow:hidden; border:1px solid var(--border-soft);}
+.progress-fill{height:100%; border-radius:20px; background:linear-gradient(90deg,var(--gold),var(--gold-2));}
+.progress-fill.ok{background:linear-gradient(90deg,#22c55e,#15803d);}
+.progress-fill.warn{background:linear-gradient(90deg,var(--amber),#b45309);}
+.progress-fill.low{background:linear-gradient(90deg,var(--red),#991b1b);}
+.progress-wrap{display:flex; align-items:center; gap:8px;}
+.progress-pct{font-size:11.5px; font-weight:800; width:38px; text-align:right; flex-shrink:0;}
+
+.status-badge{font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px; white-space:nowrap;}
+.status-badge.ok{background:var(--green-soft); color:var(--green);}
+.status-badge.warn{background:rgba(245,158,11,.15); color:var(--amber);}
+.status-badge.low{background:var(--red-soft); color:var(--red);}
+.status-badge.none{background:var(--panel-3); color:var(--text-dim);}
+
+.empty-state{padding:30px; text-align:center; color:var(--text-dim); font-size:13px;}
+
+/* ---- STORE PICKER (template 2) ---- */
+.store-picker{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+.store-select{
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-weight:700; font-size:13.5px;
+  padding:10px 14px; border-radius:10px; cursor:pointer; font-family:'Inter',sans-serif; min-width:240px;
+}
+.store-chips{display:flex; gap:8px; flex-wrap:wrap;}
+.store-chip{
+  padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer;
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text-mut);
+}
+.store-chip.active{background:var(--gold-soft); border-color:var(--gold); color:var(--gold-2);}
+
+/* ---- SUBTABS (ranking) ---- */
+.subtabs{display:flex; gap:6px; background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:5px; width:fit-content;}
+.subtab-btn{
+  font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:14.5px; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--text-mut); background:transparent; border:none; padding:8px 18px;
+  border-radius:8px; cursor:pointer;
+}
+.subtab-btn.active{color:#FFFFFF; background:linear-gradient(135deg,var(--gold),var(--gold-2));}
+.subview{display:none;}
+.subview.active{display:flex; flex-direction:column; gap:18px; animation:fadeIn .25s ease;}
+
+/* ---- FILTER BAR (template 3) ---- */
+.filter-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.search-input{
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-size:13px;
+  padding:9px 14px 9px 36px; border-radius:10px; min-width:220px; font-family:'Inter',sans-serif;
+}
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:var(--text-dim);}
+.filter-select{
+  background:var(--panel-2); border:1px solid var(--border); color:var(--text); font-weight:700; font-size:12.5px;
+  padding:9px 12px; border-radius:10px; cursor:pointer; font-family:'Inter',sans-serif;
+}
+
+/* misc small stat */
+.mini-stat{background:var(--panel-2); border:1px solid var(--border-soft); border-radius:10px; padding:12px 14px;}
+.mini-stat .lbl{font-size:10.5px; color:var(--text-mut); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+.mini-stat .val{font-size:19px; font-weight:800; margin-top:4px;}
+
+.legend-row{display:flex; gap:16px; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:10px;}
+.legend-item{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-mut);}
+.legend-dot{width:10px; height:10px; border-radius:3px;}
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sb-overlay" id="sbOverlay"></div>
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <div class="mark">
+        <svg viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="46" stroke="#FF6B00" stroke-width="7"></circle><path d="M30 65 L50 30 L58 44 L44 44 L58 68" stroke="#FF6B00" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"></path></svg>
+      </div>
+      <div class="txt">
+        <div class="name">JS GRUPO</div>
+        <div class="sub">PAINEL DE VENDAS</div>
+      </div>
+      <button class="sb-close" id="sbClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section-lbl">ANALISE COMERCIAL</div>
+      <div class="nav-item active" data-view="geral">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+        <span>VISÃO GERAL</span>
+      </div>
+      <div class="nav-item" data-view="filial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"></path></svg>
+        <span>Vendas por Filial</span>
+      </div>
+      <div class="nav-item" data-view="ranking">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM7 6H4a3 3 0 003 3M17 6h3a3 3 0 01-3 3"></path></svg>
+        <span>Ranking</span>
+        <span class="badge">3</span>
+      </div>
+      <div class="nav-item" data-view="revendedores">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"></circle><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path><circle cx="18" cy="8.5" r="2.4"></circle><path d="M15.5 14.2c2.9.2 5 2.4 5 5.8"></path></svg>
+        <span>Revendedores</span>
+      </div>
+
+    </nav>
+
+    <div class="sb-foot">
+      <div class="sb-meta">Atualizado em <span id="footDate">24/07/2026</span></div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+      <div class="tb-title">
+        <span class="eyebrow" id="tbEyebrow">Grupo JS Executivo</span>
+        <h1 id="tbTitle">Visão Geral</h1>
+      </div>
+      <div class="tb-date">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4M16 3v4M3 10h18"></path></svg>
+        Vendas em <b>24/07/2026</b>
+      </div>
+      <select class="uf-select" id="ufFilter">
+        <option value="TODOS">Todas as unidades (PB + RN)</option>
+        <option value="PB">Somente Parai­ba</option>
+        <option value="RN">Somente Rio Grande do Norte</option>
+      </select>
+      </header>
+
+    <main class="content">
+
+      <div id="dataStatusBanner" class="data-status-banner" style="display:none;"></div>
+
+      <!-- ============================================================ -->
+      <!-- TEMPLATE 1 — VISÃO GERAL -->
+      <!-- ============================================================ -->
+      <section class="view active" id="view-geral">
+        <div class="view-head">
+          <div>
+            <h2>Visão Geral das Vendas</h2>
+            <p>Panorama executivo consolidado de todas as filiais e canais — Paraíba e Rio Grande do Norte.</p>
+          </div>
+          <span class="chip gold" id="ufBadgeGeral">PB + RN</span>
+        </div>
+
+        <div class="kpi-row" id="kpiRowGeral"></div>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Participação por Modelo <span class="tag">% do total vendido</span></div>
+            <div class="chart-box chart-h-220"><canvas id="chartModeloShare"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Volume por Modelo <span class="tag">unidades</span></div>
+            <div class="chart-box chart-h-220"><canvas id="chartModeloVol"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Revendas x Lojas <span class="tag">canal de venda</span></div>
+            <div class="chart-box chart-h-220"><canvas id="chartCanal"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Matriz Consolidada de Filiais
+            <span class="tag" id="filiaisCount">14 filiais</span>
+          </div>
+          <div class="tbl-wrap">
+            <table id="tblFiliais">
+              <thead>
+                <tr>
+                  <th data-key="nome">Filial</th>
+                  <th data-key="uf">UF</th>
+                  <th class="num" data-key="az1">AZ1</th>
+                  <th class="num" data-key="az125">AZ125</th>
+                  <th class="num" data-key="az160">AZ160</th>
+                  <th class="num" data-key="total">Total</th>
+                  <th class="num" data-key="meta">Meta</th>
+                  <th class="num" data-key="falta">Falta</th>
+                  <th data-key="pct">Atingimento</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TEMPLATE 2 — RESUMO POR FILIAL -->
+      <!-- ============================================================ -->
+      <section class="view" id="view-filial">
+        <div class="view-head">
+          <div>
+            <h2>Resumo de Vendas por Filial</h2>
+            <p>Selecione uma unidade para ver o desempenho detalhado dos vendedores vinculados.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="store-picker">
+            <select class="store-select" id="storeSelect"><option value="Beira Rio" selected="">Beira Rio (PB)</option><option value="Sapé">Sapé (PB)</option><option value="João Pessoa (Matriz)">João Pessoa (Matriz) (PB)</option><option value="São Bento">São Bento (PB)</option><option value="Pombal">Pombal (PB)</option><option value="Mamanguape">Mamanguape (PB)</option><option value="Guarabira">Guarabira (PB)</option><option value="Patos (Centro)">Patos (Centro) (PB)</option><option value="Patos (CD)">Patos (CD) (PB)</option><option value="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB (PB)</option><option value="Parnamirim (Matriz)">Parnamirim (Matriz) (RN)</option><option value="Parnamirim (Filial)">Parnamirim (Filial) (RN)</option><option value="Natal">Natal (RN)</option><option value="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN (RN)</option></select>
+            <div class="store-chips" id="storeQuickChips"><span class="store-chip " data-store="Marcelo (Loja Propria) - PB">Marcelo (Loja Propria) - PB</span><span class="store-chip " data-store="Marcelo (Loja Propria) - RN">Marcelo (Loja Propria) - RN</span><span class="store-chip " data-store="Mamanguape">Mamanguape</span><span class="store-chip " data-store="João Pessoa (Matriz)">João Pessoa (Matriz)</span><span class="store-chip " data-store="Patos (Centro)">Patos (Centro)</span></div>
+          </div>
+        </div>
+
+        <div class="kpi-row" id="kpiRowFilial"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Vendedores da Unidade <span class="tag" id="filialSellerTag">2 vendedores</span></div>
+            <div class="tbl-wrap">
+              <table id="tblVendedores">
+                <thead><tr><th>Vendedor</th><th class="num">AZ1</th><th class="num">AZ125</th><th class="num">AZ160</th><th class="num">Total</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Vendas por Vendedor <span class="tag">unidades</span></div>
+            <div class="chart-box chart-h-260"><canvas id="chartVendedoresFilial"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Metas por Modelo — <span id="filialModeloTitle" class="tag">Beira Rio</span></div>
+          <div class="chart-box chart-h-220"><canvas id="chartMetasFilial"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TEMPLATE 2.5 — RANKING -->
+      <!-- ============================================================ -->
+      <section class="view" id="view-ranking">
+        <div class="view-head">
+          <div>
+            <h2>Ranking de Vendas</h2>
+            <p>Classificação por lojas, vendedores e revendedores no período.</p>
+          </div>
+        </div>
+
+        <div class="subtabs">
+          <button class="subtab-btn active" data-sub="lojas">Lojas</button>
+          <button class="subtab-btn" data-sub="vendedores">Vendedores</button>
+          <button class="subtab-btn" data-sub="revendedores">Revendedores</button>
+        </div>
+
+        <div class="subview active" id="sub-lojas">
+          <div class="card">
+            <div class="card-title">Vendas por Loja <span class="tag">unidades vendidas no período</span></div>
+            <div class="chart-box chart-h-360"><canvas id="chartRankLojas"></canvas></div>
+          </div>
+        </div>
+
+        <div class="subview" id="sub-vendedores">
+          <div class="card">
+            <div class="card-title">Vendas por Vendedor <span class="tag">unidades vendidas no período</span></div>
+            <div class="chart-box chart-h-360"><canvas id="chartRankVendedores"></canvas></div>
+          </div>
+        </div>
+
+        <div class="subview" id="sub-revendedores">
+          <div class="kpi-row" id="kpiRowRankRev"></div>
+          <div class="grid-3">
+            <div class="card">
+              <div class="card-title">Motos Mais Compradas</div>
+              <div class="chart-box chart-h-220"><canvas id="chartMotosCompradas"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Vendas Internas <span class="tag">Marcelo x Lojas</span></div>
+              <div class="chart-box chart-h-220"><canvas id="chartVendasInternas"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Top Revendedores <span class="tag">total comprado</span></div>
+              <div class="chart-box chart-h-220"><canvas id="chartTopRevendedores"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ranking Completo de Revendedores</div>
+            <div class="tbl-wrap">
+              <table id="tblRankRevendedores">
+                <thead>
+                  <tr><th>Pos.</th><th>Cidade / Revendedor</th><th class="num">AZ160</th><th class="num">AZ125</th><th class="num">AZ1</th><th class="num">Total</th><th class="num">Projeção</th><th class="num">Meta</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TEMPLATE 3 — DETALHAMENTO REVENDEDORES -->
+      <!-- ============================================================ -->
+      <section class="view" id="view-revendedores">
+        <div class="view-head">
+          <div>
+            <h2>Detalhamento de Vendas dos Revendedores</h2>
+            <p>Rede completa de revendedores, atingimento individual de metas e histórico de compras.</p>
+          </div>
+        </div>
+
+        <div class="kpi-row" id="kpiRowRevDetail"></div>
+
+        <div class="card">
+          <div class="filter-bar">
+            <div class="search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+              <input class="search-input" id="revSearch" placeholder="Buscar revendedor ou cidade...">
+            </div>
+            <select class="filter-select" id="revStatusFilter">
+              <option value="TODOS">Todos os status</option>
+              <option value="ok">Meta batida</option>
+              <option value="warn">Em progresso</option>
+              <option value="low">Atenção</option>
+              <option value="none">Sem movimento</option>
+            </select>
+            <select class="filter-select" id="revSortSelect">
+              <option value="pos">Ordenar: Posição</option>
+              <option value="total">Ordenar: Total comprado</option>
+              <option value="pct">Ordenar: % Atingimento</option>
+              <option value="nome">Ordenar: Nome (A-Z)</option>
+            </select>
+            <span class="chip blue" id="revCountChip" style="margin-left:auto;">22 de 22 revendedores</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Rede de Revendedores <span class="tag">clique nas colunas da tabela de ranking para reordenar</span></div>
+          <div class="tbl-wrap">
+            <table id="tblRevDetail">
+              <thead>
+                <tr>
+                  <th data-key="pos">Pos.</th>
+                  <th data-key="nome">Revendedor</th>
+                  <th class="num" data-key="az160">AZ160</th>
+                  <th class="num" data-key="az125">AZ125</th>
+                  <th class="num" data-key="az1">AZ1</th>
+                  <th class="num" data-key="total">Total Comprado</th>
+                  <th class="num" data-key="projecao">Projeção</th>
+                  <th class="num" data-key="meta">Meta</th>
+                  <th data-key="pct">Atingimento</th>
+                  <th data-key="status">Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      </main>
+</div>
+</div>
+
+<script>
+const REF_DATE = '28/07/2026';
+
+/* ================================================================
+   1. CONFIGURAÇÃO DA API (GOOGLE SHEETS)
+   ================================================================ */
+const DATA_SOURCE = {
+  enabled: true,
+  url: 'https://script.google.com/macros/s/AKfycbyuuLh9AVN28AvYqJsdR4XJWNkuH5gE70aft56XVsMMMdCUcpsVLRouLe9SrHHMBLlO/exec'
+};
+
+/* ================================================================
+   2. VARIÁVEIS DO DASHBOARD (INICIADAS VAZIAS)
+   ================================================================ */
+let TOTALS = { az1: 0, az125: 0, az160: 0, totalGeral: 0, pb: 0, rn: 0, revendas: 0, lojas: 0, previsao: 0, meta: 0 };
+let FILIAIS = [];
+let RANK_LOJAS = [];
+let RANK_VENDEDORES = [];
+let REV_HEADER = { az160: 0, az125: 0, az1: 0, total: 0, previsao: 0, meta: 0 };
+let REVENDEDORES = [];
+let MOTOS_COMPRADAS = { az1: 0, az160: 0, az125: 0 };
+let VENDAS_INTERNAS = { marcelo: 0, lojas: 0 };
+
+/* ================================================================
+   3. HELPERS & NORMALIZADORES DE DADOS
+   ================================================================ */
+function pct(sold, meta) { if (!meta) return sold > 0 ? 100 : 0; return Math.round((sold / meta) * 100); }
+
+function normalizeFiliais(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(f => ({
+    nome: f.nome || '',
+    uf: f.uf || '',
+    az1: f.az1 && typeof f.az1 === 'object' ? { sold: Number(f.az1.sold || 0), meta: Number(f.az1.meta || 0) } : { sold: Number(f.az1 || 0), meta: 0 },
+    az125: f.az125 && typeof f.az125 === 'object' ? { sold: Number(f.az125.sold || 0), meta: Number(f.az125.meta || 0) } : { sold: Number(f.az125 || 0), meta: 0 },
+    az160: f.az160 && typeof f.az160 === 'object' ? { sold: Number(f.az160.sold || 0), meta: Number(f.az160.meta || 0) } : { sold: Number(f.az160 || 0), meta: 0 },
+    total: Number(f.total || 0),
+    meta: Number(f.meta || 0),
+    vendedores: Array.isArray(f.vendedores) ? f.vendedores.map(v => ({ ...v })) : []
+  }));
+}
+
+function normalizeRevendedores(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((r, idx) => ({
+    ...r,
+    pos: Number(r.pos || idx + 1),
+    az160: Number(r.az160 || 0),
+    az125: Number(r.az125 || 0),
+    az1: Number(r.az1 || 0),
+    total: Number(r.total || 0),
+    projecao: Number(r.projecao || 0),
+    meta: Number(r.meta || 0)
+  }));
+}
+
+/* ================================================================
+   3.1 BANNER DE STATUS (Única fonte visível de erro/carregamento)
+   ================================================================ */
+function setDataStatus(state, message) {
+  const el = document.getElementById('dataStatusBanner');
+  if (state === 'hidden') { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.className = 'data-status-banner ' + state;
+  el.innerHTML = (state === 'loading' ? '<span class="spin"></span>' : '') + '<span>' + esc(message) + '</span>';
+}
+
+/* ================================================================
+   4. FUNÇÃO DE BUSCA DA PLANILHA (SEM CACHE)
+   ================================================================ */
+async function loadRemoteData() {
+  if (!DATA_SOURCE.enabled || !DATA_SOURCE.url) {
+    setDataStatus('error', 'Nenhuma fonte de dados configurada (DATA_SOURCE.url vazio).');
+    return false;
+  }
+  try {
+    const fetchUrl = `${DATA_SOURCE.url}${DATA_SOURCE.url.includes('?') ? '&' : '?'}_=${Date.now()}`;
+    const response = await fetch(fetchUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+
+    if (payload.totals) TOTALS = { ...TOTALS, ...payload.totals };
+    if (payload.filiais) FILIAIS = normalizeFiliais(payload.filiais);
+    if (payload.rankLojas) RANK_LOJAS = payload.rankLojas;
+    if (payload.rankVendedores) RANK_VENDEDORES = payload.rankVendedores;
+    if (payload.revHeader) REV_HEADER = { ...REV_HEADER, ...payload.revHeader };
+    if (payload.revendedores) REVENDEDORES = normalizeRevendedores(payload.revendedores);
+    if (payload.motosCompradas) MOTOS_COMPRADAS = { ...MOTOS_COMPRADAS, ...payload.motosCompradas };
+    if (payload.vendasInternas) VENDAS_INTERNAS = { ...VENDAS_INTERNAS, ...payload.vendasInternas };
+
+    console.info('✅ Dados remotos do Google Sheets carregados com sucesso.');
+    setDataStatus('hidden');
+    return true;
+  } catch (err) {
+    console.error('❌ Erro ao buscar dados da planilha:', err);
+    setDataStatus('error', 'Não foi possível carregar os dados da planilha (' + err.message + '). Tentando novamente em 5 min.');
+    return false;
+  }
+}
+
+/* ================================================================
+   5. FUNÇÕES AUXILIARES DE ESTADO
+   ================================================================ */
+function statusOf(sold, meta) {
+  if (!meta && !sold) return 'none';
+  const p = pct(sold, meta);
+  if (p >= 100) return 'ok';
+  if (p >= 50) return 'warn';
+  return 'low';
+}
+function statusLabel(s) { return { ok: 'Meta batida', warn: 'Em progresso', low: 'Atenção', none: 'Sem movimento' }[s] || ''; }
+function fillClass(s) { return { ok: 'ok', warn: 'warn', low: 'low', none: '' }[s] || ''; }
+function filialTotal(f) { return (f.az1?.sold || 0) + (f.az125?.sold || 0) + (f.az160?.sold || 0) || Number(f.total || 0); }
+function filialMeta(f) { return (f.az1?.meta || 0) + (f.az125?.meta || 0) + (f.az160?.meta || 0) || Number(f.meta || 0); }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+/* ================================================================
+   NAVIGATION ” sidebar / views
+   ================================================================ */
+const VIEW_META = {
+  geral: {eyebrow:'Grupo JS · Executivo', title:'Visão Geral das Vendas'},
+  filial: {eyebrow:'Grupo JS · Unidades', title:'Resumo de Vendas por Filial'},
+  ranking: {eyebrow:'Grupo JS · Performance', title:'Ranking de Vendas'},
+  revendedores: {eyebrow:'Grupo JS · Rede Externa', title:'Detalhamento de Revendedores'},};
+
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    const v = item.dataset.view;
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('tbEyebrow').textContent = VIEW_META[v].eyebrow;
+    document.getElementById('tbTitle').textContent = VIEW_META[v].title;
+    closeSidebarMobile();
+    // (re)render charts for the view being shown, so canvases sized correctly
+    if(v==='geral') renderGeral();
+    if(v==='filial') renderFilialCharts();
+    if(v==='ranking') renderRankingActive();
+    if(v==='revendedores') renderRevDetail();  });
+});
+
+const sidebar = document.getElementById('sidebar');
+const sbOverlay = document.getElementById('sbOverlay');
+document.getElementById('hamburger').addEventListener('click', ()=>{
+  sidebar.classList.add('open'); sbOverlay.classList.add('show');
+});
+document.getElementById('sbClose').addEventListener('click', closeSidebarMobile);
+sbOverlay.addEventListener('click', closeSidebarMobile);
+function closeSidebarMobile(){ sidebar.classList.remove('open'); sbOverlay.classList.remove('show'); }
+
+/* ================================================================
+   UF GLOBAL FILTER
+   ================================================================ */
+let currentUF = 'TODOS';
+document.getElementById('ufFilter').addEventListener('change', e=>{
+  currentUF = e.target.value;
+  document.getElementById('ufBadgeGeral').textContent = currentUF==='TODOS' ? 'PB + RN' : currentUF;
+  renderGeral();
+  populateStoreSelect();
+});
+function filiaisFiltradas(){
+  return currentUF==='TODOS' ? FILIAIS : FILIAIS.filter(f=>f.uf===currentUF);
+}
+
+/* ================================================================
+   TEMPLATE 1 — VISÃO GERAL
+   ================================================================ */
+function kpiCard(label, value, sub, accent, iconSvg){
+  return `<div class="kpi-card" style="--accent:${accent}">
+    <div class="lbl">${iconSvg||''}${label}</div>
+    <div class="val">${value}</div>
+    ${sub?`<div class="sub">${sub}</div>`:''}
+  </div>`;
+}
+const ICO = {
+  moto:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M9 17.5h6l-2-7H8l-2 4M15 10.5l3-3h3"/></svg>',
+  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".5"/></svg>',
+  trend:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-8"/></svg>',
+  store:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12"/></svg>',
+};
+
+function renderGeral(){
+  const fs = filiaisFiltradas();
+  const az1 = fs.reduce((a,f)=>a+f.az1.sold,0);
+  const az125 = fs.reduce((a,f)=>a+f.az125.sold,0);
+  const az160 = fs.reduce((a,f)=>a+f.az160.sold,0);
+  const total = az1+az125+az160;
+  const metaTotal = fs.reduce((a,f)=>a+filialMeta(f),0);
+
+  document.getElementById('kpiRowGeral').innerHTML = [
+    kpiCard('AZ1', az1, 'unidades vendidas', PALETTE.az1, ICO.moto),
+    kpiCard('AZ125', az125, 'unidades vendidas', PALETTE.az125, ICO.moto),
+    kpiCard('AZ160', az160, 'unidades vendidas', PALETTE.az160, ICO.moto),
+    kpiCard('Total Geral', currentUF==='TODOS' ? TOTALS.totalGeral : total, currentUF==='TODOS' ? `PB ${TOTALS.pb} · RN ${TOTALS.rn}` : `${fs.length} filiais`, '#3b82f6', ICO.store),
+    kpiCard('Previsão', TOTALS.previsao, 'unidades projetadas', '#a855f7', ICO.trend),
+    kpiCard('Meta da Empresa', TOTALS.meta, `Revendas ${TOTALS.revendas} · Lojas ${TOTALS.lojas}`, '#22c55e', ICO.target),
+  ].join('');
+
+  killChart('modeloShare');
+  CHARTS.modeloShare = new Chart(document.getElementById('chartModeloShare'), {
+    type:'doughnut',
+    data:{ labels:['AZ1','AZ125','AZ160'], datasets:[{ data:[az1,az125,az160], backgroundColor:[PALETTE.az1,PALETTE.az125,PALETTE.az160], borderWidth:0 }] },
+    options:{ maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{position:'bottom', labels:{color:themeColors().text, font:{size:11.5}, boxWidth:11, padding:12}} } }
+  });
+
+  killChart('modeloVol');
+  CHARTS.modeloVol = new Chart(document.getElementById('chartModeloVol'), {
+    type:'bar',
+    data:{ labels:['AZ1','AZ125','AZ160'], datasets:[{ data:[az1,az125,az160], backgroundColor:[PALETTE.az1,PALETTE.az125,PALETTE.az160], borderRadius:8, maxBarThickness:60 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:themeColors().text}, grid:{display:false}}, y:{ticks:{color:themeColors().text}, grid:{color:themeColors().grid}} } }
+  });
+
+  killChart('canal');
+  CHARTS.canal = new Chart(document.getElementById('chartCanal'), {
+    type:'doughnut',
+    data:{ labels:['Revendas','Lojas'], datasets:[{ data:[TOTALS.revendas,TOTALS.lojas], backgroundColor:['#f0b429','#3b82f6'], borderWidth:0 }] },
+    options:{ maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{position:'bottom', labels:{color:themeColors().text, font:{size:11.5}, boxWidth:11, padding:12}} } }
+  });
+
+  // tabela consolidada
+  document.getElementById('filiaisCount').textContent = fs.length + ' filiais';
+  renderFiliaisTable(fs);
+}
+
+let filiaisSort = {key:'total', dir:'desc'};
+function renderFiliaisTable(fs){
+  const rows = fs.map(f=>{
+    const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta-tot,0), p = pct(tot,meta), st = statusOf(tot,meta);
+    return {nome:f.nome, uf:f.uf, az1:f.az1.sold, az125:f.az125.sold, az160:f.az160.sold, total:tot, meta, falta, pct:p, status:st};
+  });
+  rows.sort((a,b)=>{
+    const k = filiaisSort.key, dir = filiaisSort.dir==='asc'?1:-1;
+    if(typeof a[k]==='string') return a[k].localeCompare(b[k])*dir;
+    return (a[k]-b[k])*dir;
+  });
+  const tbody = document.querySelector('#tblFiliais tbody');
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td><b>${esc(r.nome)}</b></td>
+      <td><span class="chip ${r.uf==='PB'?'gold':'blue'}">${r.uf}</span></td>
+      <td class="num">${r.az1}</td><td class="num">${r.az125}</td><td class="num">${r.az160}</td>
+      <td class="num"><b>${r.total}</b></td>
+      <td class="num">${r.meta}</td>
+      <td class="num">${r.falta}</td>
+      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ${fillClass(r.status)}" style="width:${Math.min(r.pct,100)}%"></div></div><span class="progress-pct">${r.pct}%</span></div></td>
+    </tr>`).join('') || `<tr><td colspan="9" class="empty-state">Nenhuma filial para o filtro selecionado.</td></tr>`;
+}
+document.querySelectorAll('#tblFiliais thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.key; if(!k) return;
+    filiaisSort.dir = (filiaisSort.key===k && filiaisSort.dir==='desc') ? 'asc' : 'desc';
+    filiaisSort.key = k;
+    renderFiliaisTable(filiaisFiltradas());
+  });
+});
+
+/* ================================================================
+   TEMPLATE 2 — RESUMO POR FILIAL
+   ================================================================ */
+let selectedFilial = null;
+function populateStoreSelect(){
+  const fs = filiaisFiltradas();
+  if(!fs.find(f=>f.nome===selectedFilial)) selectedFilial = fs[0] ? fs[0].nome : null;
+  const sel = document.getElementById('storeSelect');
+  sel.innerHTML = fs.map(f=>`<option value="${esc(f.nome)}" ${f.nome===selectedFilial?'selected':''}>${esc(f.nome)} (${f.uf})</option>`).join('');
+  const chips = document.getElementById('storeQuickChips');
+  const topByTotal = [...fs].sort((a,b)=>filialTotal(b)-filialTotal(a)).slice(0,5);
+  chips.innerHTML = topByTotal.map(f=>`<span class="store-chip ${f.nome===selectedFilial?'active':''}" data-store="${esc(f.nome)}">${esc(f.nome)}</span>`).join('');
+  chips.querySelectorAll('.store-chip').forEach(c=>c.addEventListener('click', ()=>{
+    selectedFilial = c.dataset.store; sel.value = selectedFilial; renderFilialCharts();
+  }));
+}
+document.getElementById('storeSelect').addEventListener('change', e=>{ selectedFilial = e.target.value; renderFilialCharts(); });
+
+function renderFilialCharts(){
+  populateStoreSelect();
+  const f = FILIAIS.find(x=>x.nome===selectedFilial);
+  if(!f){ document.getElementById('kpiRowFilial').innerHTML = `<div class="empty-state">Nenhuma filial disponível para este filtro.</div>`; return; }
+  const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta-tot,0), p = pct(tot,meta), st = statusOf(tot,meta);
+
+  document.getElementById('kpiRowFilial').innerHTML = [
+    kpiCard('AZ1', f.az1.sold, `meta ${f.az1.meta}`, PALETTE.az1, ICO.moto),
+    kpiCard('AZ125', f.az125.sold, `meta ${f.az125.meta}`, PALETTE.az125, ICO.moto),
+    kpiCard('AZ160', f.az160.sold, `meta ${f.az160.meta}`, PALETTE.az160, ICO.moto),
+    kpiCard('Total Vendido', tot, `de ${meta} unidades meta`, '#3b82f6', ICO.trend),
+    kpiCard('Falta p/ Meta', falta, statusLabel(st), st==='ok'?'#22c55e':st==='warn'?'#f59e0b':'#ef4444', ICO.target),
+  ].join('');
+
+  document.getElementById('filialSellerTag').textContent = f.vendedores.length ? f.vendedores.length+' vendedores' : 'venda direta (sem vendedor vinculado)';
+  const tb = document.querySelector('#tblVendedores tbody');
+  tb.innerHTML = f.vendedores.map(v=>`
+    <tr><td><b>${esc(v.nome)}</b></td><td class="num">${v.az1}</td><td class="num">${v.az125}</td><td class="num">${v.az160}</td><td class="num"><b>${v.az1+v.az125+v.az160}</b></td></tr>
+  `).join('') || `<tr><td colspan="5" class="empty-state">Sem vendedores individuais — vendas registradas diretamente pela unidade.</td></tr>`;
+
+  killChart('vendedoresFilial');
+  if(f.vendedores.length){
+    CHARTS.vendedoresFilial = new Chart(document.getElementById('chartVendedoresFilial'), {
+      type:'bar',
+      data:{ labels: f.vendedores.map(v=>v.nome), datasets:[{ label:'Total vendido', data:f.vendedores.map(v=>v.az1+v.az125+v.az160), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:46 }] },
+      options:{ maintainAspectRatio:false, plugins:{legend:{display:false}},
+        scales:{ x:{ticks:{color:themeColors().text}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
+    });
+  }
+
+  document.getElementById('filialModeloTitle').textContent = f.nome;
+  killChart('metasFilial');
+  CHARTS.metasFilial = new Chart(document.getElementById('chartMetasFilial'), {
+    type:'bar',
+    data:{ labels:['AZ1','AZ125','AZ160'],
+      datasets:[
+        { label:'Vendido', data:[f.az1.sold,f.az125.sold,f.az160.sold], backgroundColor:'#3b82f6', borderRadius:6, maxBarThickness:42 },
+        { label:'Meta', data:[f.az1.meta,f.az125.meta,f.az160.meta], backgroundColor:'#f0b429', borderRadius:6, maxBarThickness:42 },
+      ] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:12}}},
+      scales:{ x:{ticks:{color:themeColors().text}, grid:{display:false}}, y:{ticks:{color:themeColors().text}, grid:{color:themeColors().grid}} } }
+  });
+}
+
+/* ================================================================
+   TEMPLATE 2.5 — RANKING
+   ================================================================ */
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.subview').forEach(s=>s.classList.remove('active'));
+    document.getElementById('sub-'+btn.dataset.sub).classList.add('active');
+    renderRankingActive();
+  });
+});
+function activeSub(){ return document.querySelector('.subtab-btn.active').dataset.sub; }
+function renderRankingActive(){
+  const s = activeSub();
+  if(s==='lojas') renderRankLojas();
+  if(s==='vendedores') renderRankVendedores();
+  if(s==='revendedores') renderRankRevendedores();
+}
+function renderRankLojas(){
+  killChart('rankLojas');
+  CHARTS.rankLojas = new Chart(document.getElementById('chartRankLojas'), {
+    type:'bar',
+    data:{ labels:RANK_LOJAS.map(x=>x.nome), datasets:[{ data:RANK_LOJAS.map(x=>x.qtd), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:50 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw+' unidades'}}},
+      scales:{ x:{ticks:{color:themeColors().text, maxRotation:40, minRotation:0}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
+  });
+}
+function renderRankVendedores(){
+  killChart('rankVendedores');
+  CHARTS.rankVendedores = new Chart(document.getElementById('chartRankVendedores'), {
+    type:'bar',
+    data:{ labels:RANK_VENDEDORES.map(x=>x.nome), datasets:[{ data:RANK_VENDEDORES.map(x=>x.qtd), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:34 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw+' unidades'}}},
+      scales:{ x:{ticks:{color:themeColors().text, maxRotation:55, minRotation:35, font:{size:10.5}}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
+  });
+}
+function renderRankRevendedores(){
+  document.getElementById('kpiRowRankRev').innerHTML = [
+    kpiCard('AZ160CC', REV_HEADER.az160, 'unidades no período', PALETTE.az160, ICO.moto),
+    kpiCard('AZ125CC', REV_HEADER.az125, 'unidades no período', PALETTE.az125, ICO.moto),
+    kpiCard('AZ1 49CC', REV_HEADER.az1, 'unidades no período', PALETTE.az1, ICO.moto),
+    kpiCard('Total', REV_HEADER.total, 'comprado pela rede', '#3b82f6', ICO.trend),
+    kpiCard('Projeção', REV_HEADER.previsao, 'unidades esperadas', '#a855f7', ICO.trend),
+    kpiCard('Meta', REV_HEADER.meta, `${pct(REV_HEADER.total,REV_HEADER.meta)}% atingido`, '#22c55e', ICO.target),
+  ].join('');
+
+  killChart('motosCompradas');
+  CHARTS.motosCompradas = new Chart(document.getElementById('chartMotosCompradas'), {
+    type:'doughnut',
+    data:{ labels:['AZ1 49CC','AZ160CC','AZ125CC'], datasets:[{ data:[MOTOS_COMPRADAS.az1,MOTOS_COMPRADAS.az160,MOTOS_COMPRADAS.az125], backgroundColor:[PALETTE.az1,PALETTE.az160,PALETTE.az125], borderWidth:0 }] },
+    options:{ maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:11, font:{size:11}}}} }
+  });
+  killChart('vendasInternas');
+  CHARTS.vendasInternas = new Chart(document.getElementById('chartVendasInternas'), {
+    type:'doughnut',
+    data:{ labels:['Marcelo','Lojas'], datasets:[{ data:[VENDAS_INTERNAS.marcelo,VENDAS_INTERNAS.lojas], backgroundColor:['#f0b429','#3b82f6'], borderWidth:0 }] },
+    options:{ maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:11, font:{size:11}}}} }
+  });
+  killChart('topRevendedores');
+  const top = [...REVENDEDORES].sort((a,b)=>b.total-a.total).slice(0,8);
+  CHARTS.topRevendedores = new Chart(document.getElementById('chartTopRevendedores'), {
+    type:'bar',
+    data:{ labels:top.map(x=>x.nome.split(' - ')[1]||x.nome), datasets:[{ data:top.map(x=>x.total), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:26 }] },
+    options:{ indexAxis:'y', maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}}, y:{ticks:{color:themeColors().text, font:{size:10.5}}, grid:{display:false}} } }
+  });
+
+  const tb = document.querySelector('#tblRankRevendedores tbody');
+  const ordered = [...REVENDEDORES].sort((a,b)=>a.pos-b.pos);
+  tb.innerHTML = ordered.map(r=>{
+    const pillClass = r.pos===1?'top1':r.pos===2?'top2':r.pos===3?'top3':'';
+    return `<tr>
+      <td><span class="rank-pill ${pillClass}">${r.pos}</span></td>
+      <td><b>${esc(r.nome)}</b></td>
+      <td class="num">${r.az160}</td><td class="num">${r.az125}</td><td class="num">${r.az1}</td>
+      <td class="num"><b>${r.total}</b></td><td class="num">${r.projecao}</td><td class="num">${r.meta}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ================================================================
+   TEMPLATE 3 — DETALHAMENTO REVENDEDORES
+   ================================================================ */
+let revSort = {key:'pos', dir:'asc'};
+function renderRevDetail(){
+  const totalComprado = REVENDEDORES.reduce((a,r)=>a+r.total,0);
+  const metaComprado = REVENDEDORES.reduce((a,r)=>a+r.meta,0);
+  const ativos = REVENDEDORES.filter(r=>r.total>0).length;
+  const metaBatida = REVENDEDORES.filter(r=>statusOf(r.total,r.meta)==='ok').length;
+
+  document.getElementById('kpiRowRevDetail').innerHTML = [
+    kpiCard('Revendedores Ativos', ativos+' / '+REVENDEDORES.length, 'com compras no período', '#3b82f6', ICO.store),
+    kpiCard('Total Comprado', totalComprado, 'unidades na rede', PALETTE.az160, ICO.moto),
+    kpiCard('Meta da Rede', metaComprado, `${pct(totalComprado,metaComprado)}% atingido`, '#22c55e', ICO.target),
+    kpiCard('Metas Batidas', metaBatida, 'revendedores acima da meta', '#a855f7', ICO.trend),
+  ].join('');
+
+  applyRevFilters();
+}
+
+function applyRevFilters(){
+  const q = document.getElementById('revSearch').value.trim().toLowerCase();
+  const statusF = document.getElementById('revStatusFilter').value;
+  const sortSel = document.getElementById('revSortSelect').value;
+
+  let rows = REVENDEDORES.map(r=>{
+    const p = pct(r.total, r.meta), st = statusOf(r.total, r.meta);
+    return {...r, pct:p, status:st};
+  });
+  if(q) rows = rows.filter(r=>r.nome.toLowerCase().includes(q));
+  if(statusF!=='TODOS') rows = rows.filter(r=>r.status===statusF);
+
+  const sortKey = sortSel==='pos'?'pos':sortSel==='total'?'total':sortSel==='pct'?'pct':'nome';
+  const dir = (sortSel==='nome') ? 1 : (revSort.key===sortKey ? revSort.dir==='asc'?1:-1 : -1);
+  rows.sort((a,b)=> typeof a[sortKey]==='string' ? a[sortKey].localeCompare(b[sortKey])*dir : (a[sortKey]-b[sortKey])*dir);
+
+  document.getElementById('revCountChip').textContent = rows.length + ' de ' + REVENDEDORES.length + ' revendedores';
+
+  const tb = document.querySelector('#tblRevDetail tbody');
+  tb.innerHTML = rows.map(r=>{
+    const pillClass = r.pos===1?'top1':r.pos===2?'top2':r.pos===3?'top3':'';
+    return `<tr>
+      <td><span class="rank-pill ${pillClass}">${r.pos}</span></td>
+      <td><b>${esc(r.nome)}</b></td>
+      <td class="num">${r.az160}</td><td class="num">${r.az125}</td><td class="num">${r.az1}</td>
+      <td class="num"><b>${r.total}</b></td>
+      <td class="num">${r.projecao}</td>
+      <td class="num">${r.meta}</td>
+      <td><div class="progress-wrap"><div class="progress-track"><div class="progress-fill ${fillClass(r.status)}" style="width:${Math.min(r.pct,100)}%"></div></div><span class="progress-pct">${r.pct}%</span></div></td>
+      <td><span class="status-badge ${r.status}">${statusLabel(r.status)}</span></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="10" class="empty-state">Nenhum revendedor encontrado para os filtros aplicados.</td></tr>`;
+}
+document.getElementById('revSearch').addEventListener('input', applyRevFilters);
+document.getElementById('revStatusFilter').addEventListener('change', applyRevFilters);
+document.getElementById('revSortSelect').addEventListener('change', applyRevFilters);
+document.querySelectorAll('#tblRevDetail thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.key; if(!k) return;
+    revSort.dir = (revSort.key===k && revSort.dir==='desc') ? 'asc' : 'desc';
+    revSort.key = k;
+    document.getElementById('revSortSelect').value = (k==='total'?'total':k==='pct'?'pct':k==='nome'?'nome':'pos');
+    applyRevFilters();
+  });
+});
+
+/* ================================================================
+   INIT
+   ================================================================ */
+function renderAllCharts(){
+  renderGeral();
+  renderFilialCharts();
+  renderRankingActive();
+  renderRevDetail();
+}
+async function refreshRemoteData(isInitialLoad){
+  if(isInitialLoad) setDataStatus('loading', 'Carregando dados da planilha (Google Sheets)…');
+  const loaded = await loadRemoteData();
+  if(loaded) renderAllCharts();
+  return loaded;
+}
+(async function init(){
+  populateStoreSelect();
+  await refreshRemoteData(true);
+  setInterval(() => refreshRemoteData(false), 5 * 60 * 1000);
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body></html>
+
