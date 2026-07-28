@@ -599,7 +599,7 @@ const DATA_SOURCE = {
 };
 
 /* ================================================================
-   2. VARIÁVEIS DO DASHBOARD (INICIADAS VAZIAS)
+   2. VARIÁVEIS DO DASHBOARD
    ================================================================ */
 let TOTALS = { az1: 0, az125: 0, az160: 0, totalGeral: 0, pb: 0, rn: 0, revendas: 0, lojas: 0, previsao: 0, meta: 0 };
 let FILIAIS = [];
@@ -612,22 +612,38 @@ let VENDAS_INTERNAS = { marcelo: 0, lojas: 0 };
 let CHARTS = {};
 
 /* ================================================================
-   3. HELPERS & NORMALIZADORES DE DADOS
+   3. HELPERS & NORMALIZADORES ROBUSTOS DE DADOS
    ================================================================ */
-function pct(sold, meta) { if (!meta) return sold > 0 ? 100 : 0; return Math.round((sold / meta) * 100); }
+function pct(sold, meta) { 
+  sold = Number(sold || 0);
+  meta = Number(meta || 0);
+  if (!meta) return sold > 0 ? 100 : 0; 
+  return Math.round((sold / meta) * 100); 
+}
 
 function normalizeFiliais(list) {
   if (!Array.isArray(list)) return [];
-  return list.map(f => ({
-    nome: f.nome || '',
-    uf: f.uf || '',
-    az1: f.az1 && typeof f.az1 === 'object' ? { sold: Number(f.az1.sold || 0), meta: Number(f.az1.meta || 0) } : { sold: Number(f.az1 || 0), meta: 0 },
-    az125: f.az125 && typeof f.az125 === 'object' ? { sold: Number(f.az125.sold || 0), meta: Number(f.az125.meta || 0) } : { sold: Number(f.az125 || 0), meta: 0 },
-    az160: f.az160 && typeof f.az160 === 'object' ? { sold: Number(f.az160.sold || 0), meta: Number(f.az160.meta || 0) } : { sold: Number(f.az160 || 0), meta: 0 },
-    total: Number(f.total || 0),
-    meta: Number(f.meta || 0),
-    vendedores: Array.isArray(f.vendedores) ? f.vendedores.map(v => ({ ...v })) : []
-  }));
+  return list.map(f => {
+    const az1Obj = typeof f.az1 === 'object' ? f.az1 : { sold: f.az1 || f.AZ1 || 0, meta: 0 };
+    const az125Obj = typeof f.az125 === 'object' ? f.az125 : { sold: f.az125 || f.AZ125 || 0, meta: 0 };
+    const az160Obj = typeof f.az160 === 'object' ? f.az160 : { sold: f.az160 || f.AZ160 || 0, meta: 0 };
+
+    return {
+      nome: String(f.nome || f.filial || f.loja || '').trim(),
+      uf: String(f.uf || (f.nome && f.nome.includes('PB') ? 'PB' : 'RN') || 'PB').trim().toUpperCase(),
+      az1: { sold: Number(az1Obj.sold || az1Obj.vendas || 0), meta: Number(az1Obj.meta || 0) },
+      az125: { sold: Number(az125Obj.sold || az125Obj.vendas || 0), meta: Number(az125Obj.meta || 0) },
+      az160: { sold: Number(az160Obj.sold || az160Obj.vendas || 0), meta: Number(az160Obj.meta || 0) },
+      total: Number(f.total || f.qtd || f.vendas || 0),
+      meta: Number(f.meta || 0),
+      vendedores: Array.isArray(f.vendedores) ? f.vendedores.map(v => ({
+        nome: String(v.nome || v.vendedor || '').trim(),
+        az1: Number(v.az1 || v.AZ1 || 0),
+        az125: Number(v.az125 || v.AZ125 || 0),
+        az160: Number(v.az160 || v.AZ160 || 0)
+      })) : []
+    };
+  });
 }
 
 function normalizeRevendedores(list) {
@@ -635,11 +651,12 @@ function normalizeRevendedores(list) {
   return list.map((r, idx) => ({
     ...r,
     pos: Number(r.pos || idx + 1),
-    az160: Number(r.az160 || 0),
-    az125: Number(r.az125 || 0),
-    az1: Number(r.az1 || 0),
-    total: Number(r.total || 0),
-    projecao: Number(r.projecao || 0),
+    nome: String(r.nome || r.revendedor || r.cliente || 'Revendedor ' + (idx + 1)).trim(),
+    az160: Number(r.az160 || r['AZ160'] || r.az160cc || 0),
+    az125: Number(r.az125 || r['AZ125'] || r.az125cc || 0),
+    az1: Number(r.az1 || r['AZ1'] || r.az1cc || 0),
+    total: Number(r.total || r.qtd || r.compras || 0),
+    projecao: Number(r.projecao || r.previsao || 0),
     meta: Number(r.meta || 0)
   }));
 }
@@ -657,11 +674,11 @@ function setDataStatus(state, message) {
 }
 
 /* ================================================================
-   4. FUNÇÃO DE BUSCA DA PLANILHA (SEM CACHE)
+   4. FUNÇÃO DE BUSCA DA PLANILHA (TRATAMENTO ROBUSTO)
    ================================================================ */
 async function loadRemoteData() {
   if (!DATA_SOURCE.enabled || !DATA_SOURCE.url) {
-    setDataStatus('error', 'Nenhuma fonte de dados configurada (DATA_SOURCE.url vazio).');
+    setDataStatus('error', 'Nenhuma fonte de dados configurada.');
     return false;
   }
   try {
@@ -670,27 +687,64 @@ async function loadRemoteData() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
 
-    if (payload.totals) TOTALS = { ...TOTALS, ...payload.totals };
-    if (payload.filiais) FILIAIS = normalizeFiliais(payload.filiais);
-    if (payload.rankLojas) RANK_LOJAS = payload.rankLojas;
-    if (payload.rankVendedores) RANK_VENDEDORES = payload.rankVendedores;
-    if (payload.revHeader) REV_HEADER = { ...REV_HEADER, ...payload.revHeader };
-    if (payload.revendedores) REVENDEDORES = normalizeRevendedores(payload.revendedores);
-    if (payload.motosCompradas) MOTOS_COMPRADAS = { ...MOTOS_COMPRADAS, ...payload.motosCompradas };
-    if (payload.vendasInternas) VENDAS_INTERNAS = { ...VENDAS_INTERNAS, ...payload.vendasInternas };
+    // Leitura flexível dos totais gerais
+    const rawTotals = payload.totals || payload.totais || {};
+    TOTALS = {
+      az1: Number(rawTotals.az1 || 0),
+      az125: Number(rawTotals.az125 || 0),
+      az160: Number(rawTotals.az160 || 0),
+      totalGeral: Number(rawTotals.totalGeral || rawTotals.total || 0),
+      pb: Number(rawTotals.pb || 0),
+      rn: Number(rawTotals.rn || 0),
+      revendas: Number(rawTotals.revendas || 0),
+      lojas: Number(rawTotals.lojas || 0),
+      previsao: Number(rawTotals.previsao || rawTotals.projecao || 0),
+      meta: Number(rawTotals.meta || 0)
+    };
 
-    console.info('✅ Dados remotos do Google Sheets carregados com sucesso.');
+    if (payload.filiais) FILIAIS = normalizeFiliais(payload.filiais);
+    
+    if (payload.rankLojas) {
+      RANK_LOJAS = payload.rankLojas.map(r => ({
+        nome: String(r.nome || r.loja || '').trim(),
+        qtd: Number(r.qtd || r.total || r.vendas || 0)
+      }));
+    }
+
+    if (payload.rankVendedores) {
+      RANK_VENDEDORES = payload.rankVendedores.map(r => ({
+        nome: String(r.nome || r.vendedor || '').trim(),
+        qtd: Number(r.qtd || r.total || r.vendas || 0)
+      }));
+    }
+
+    if (payload.revHeader) {
+      REV_HEADER = {
+        az160: Number(payload.revHeader.az160 || 0),
+        az125: Number(payload.revHeader.az125 || 0),
+        az1: Number(payload.revHeader.az1 || 0),
+        total: Number(payload.revHeader.total || 0),
+        previsao: Number(payload.revHeader.previsao || payload.revHeader.projecao || 0),
+        meta: Number(payload.revHeader.meta || 0)
+      };
+    }
+
+    if (payload.revendedores) REVENDEDORES = normalizeRevendedores(payload.revendedores);
+    if (payload.motosCompradas) MOTOS_COMPRADAS = { az1: Number(payload.motosCompradas.az1 || 0), az160: Number(payload.motosCompradas.az160 || 0), az125: Number(payload.motosCompradas.az125 || 0) };
+    if (payload.vendasInternas) VENDAS_INTERNAS = { marcelo: Number(payload.vendasInternas.marcelo || 0), lojas: Number(payload.vendasInternas.lojas || 0) };
+
+    console.info('✅ Dados remotos do Google Sheets carregados e tratados com sucesso.');
     setDataStatus('hidden');
     return true;
   } catch (err) {
     console.error('❌ Erro ao buscar dados da planilha:', err);
-    setDataStatus('error', 'Não foi possível carregar os dados da planilha (' + err.message + '). Tentando novamente em 5 min.');
+    setDataStatus('error', 'Não foi possível carregar os dados (' + err.message + '). Tentando novamente em 5 min.');
     return false;
   }
 }
 
 /* ================================================================
-   5. FUNÇÕES AUXILIARES DE ESTADO (PROTEGIDAS)
+   5. FUNÇÕES AUXILIARES DE ESTADO
    ================================================================ */
 function statusOf(sold, meta) {
   if (!meta && !sold) return 'none';
@@ -730,7 +784,7 @@ const PALETTE = {
 };
 
 /* ================================================================
-   NAVIGATION ” sidebar / views
+   NAVIGATION
    ================================================================ */
 const VIEW_META = {
   geral: {eyebrow:'Grupo JS · Executivo', title:'Visão Geral das Vendas'},
@@ -739,13 +793,13 @@ const VIEW_META = {
   revendedores: {eyebrow:'Grupo JS · Rede Externa', title:'Detalhamento de Revendedores'},
 };
 
-document.querySelectorAll('.nav-item').forEach(item=>{
-  item.addEventListener('click', ()=>{
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
     const v = item.dataset.view;
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     item.classList.add('active');
-    document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
-    const targetView = document.getElementById('view-'+v);
+    document.querySelectorAll('.view').forEach(s => s.classList.remove('active'));
+    const targetView = document.getElementById('view-' + v);
     if (targetView) targetView.classList.add('active');
     
     const eb = document.getElementById('tbEyebrow');
@@ -754,16 +808,16 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     if (tt && VIEW_META[v]) tt.textContent = VIEW_META[v].title;
     closeSidebarMobile();
     
-    if(v==='geral') renderGeral();
-    if(v==='filial') renderFilialCharts();
-    if(v==='ranking') renderRankingActive();
-    if(v==='revendedores') renderRevDetail();
+    if(v === 'geral') renderGeral();
+    if(v === 'filial') renderFilialCharts();
+    if(v === 'ranking') renderRankingActive();
+    if(v === 'revendedores') renderRevDetail();
   });
 });
 
 const sidebar = document.getElementById('sidebar');
 const sbOverlay = document.getElementById('sbOverlay');
-document.getElementById('hamburger')?.addEventListener('click', ()=>{
+document.getElementById('hamburger')?.addEventListener('click', () => {
   sidebar?.classList.add('open'); sbOverlay?.classList.add('show');
 });
 document.getElementById('sbClose')?.addEventListener('click', closeSidebarMobile);
@@ -774,19 +828,19 @@ function closeSidebarMobile(){ sidebar?.classList.remove('open'); sbOverlay?.cla
    UF GLOBAL FILTER
    ================================================================ */
 let currentUF = 'TODOS';
-document.getElementById('ufFilter')?.addEventListener('change', e=>{
+document.getElementById('ufFilter')?.addEventListener('change', e => {
   currentUF = e.target.value;
   const badge = document.getElementById('ufBadgeGeral');
-  if (badge) badge.textContent = currentUF==='TODOS' ? 'PB + RN' : currentUF;
+  if (badge) badge.textContent = currentUF === 'TODOS' ? 'PB + RN' : currentUF;
   renderGeral();
   populateStoreSelect();
 });
 function filiaisFiltradas(){
-  return currentUF==='TODOS' ? FILIAIS : FILIAIS.filter(f=>f.uf===currentUF);
+  return currentUF === 'TODOS' ? FILIAIS : FILIAIS.filter(f => f.uf === currentUF);
 }
 
 /* ================================================================
-   TEMPLATE 1 — VISÃO GERAL
+   RENDERIZADORES VISUAIS
    ================================================================ */
 function kpiCard(label, value, sub, accent, iconSvg){
   return `<div class="kpi-card" style="--accent:${accent}">
@@ -804,10 +858,10 @@ const ICO = {
 
 function renderGeral(){
   const fs = filiaisFiltradas();
-  const az1 = fs.reduce((a,f)=>a + (typeof f.az1 === 'object' ? (f.az1.sold || 0) : Number(f.az1 || 0)), 0);
-  const az125 = fs.reduce((a,f)=>a + (typeof f.az125 === 'object' ? (f.az125.sold || 0) : Number(f.az125 || 0)), 0);
-  const az160 = fs.reduce((a,f)=>a + (typeof f.az160 === 'object' ? (f.az160.sold || 0) : Number(f.az160 || 0)), 0);
-  const total = az1+az125+az160;
+  const az1 = fs.reduce((a,f) => a + (typeof f.az1 === 'object' ? (f.az1.sold || 0) : Number(f.az1 || 0)), 0);
+  const az125 = fs.reduce((a,f) => a + (typeof f.az125 === 'object' ? (f.az125.sold || 0) : Number(f.az125 || 0)), 0);
+  const az160 = fs.reduce((a,f) => a + (typeof f.az160 === 'object' ? (f.az160.sold || 0) : Number(f.az160 || 0)), 0);
+  const total = az1 + az125 + az160;
 
   const kpiEl = document.getElementById('kpiRowGeral');
   if (kpiEl) {
@@ -815,7 +869,7 @@ function renderGeral(){
       kpiCard('AZ1', az1, 'unidades vendidas', PALETTE.az1, ICO.moto),
       kpiCard('AZ125', az125, 'unidades vendidas', PALETTE.az125, ICO.moto),
       kpiCard('AZ160', az160, 'unidades vendidas', PALETTE.az160, ICO.moto),
-      kpiCard('Total Geral', currentUF==='TODOS' ? TOTALS.totalGeral : total, currentUF==='TODOS' ? `PB ${TOTALS.pb} · RN ${TOTALS.rn}` : `${fs.length} filiais`, '#3b82f6', ICO.store),
+      kpiCard('Total Geral', currentUF === 'TODOS' ? (TOTALS.totalGeral || total) : total, currentUF === 'TODOS' ? `PB ${TOTALS.pb} · RN ${TOTALS.rn}` : `${fs.length} filiais`, '#3b82f6', ICO.store),
       kpiCard('Previsão', TOTALS.previsao, 'unidades projetadas', '#a855f7', ICO.trend),
       kpiCard('Meta da Empresa', TOTALS.meta, `Revendas ${TOTALS.revendas} · Lojas ${TOTALS.lojas}`, '#22c55e', ICO.target),
     ].join('');
@@ -858,21 +912,21 @@ function renderGeral(){
 
 let filiaisSort = {key:'total', dir:'desc'};
 function renderFiliaisTable(fs){
-  const rows = fs.map(f=>{
-    const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta-tot,0), p = pct(tot,meta), st = statusOf(tot,meta);
-    const az1S = typeof f.az1==='object' ? f.az1.sold : f.az1;
-    const az125S = typeof f.az125==='object' ? f.az125.sold : f.az125;
-    const az160S = typeof f.az160==='object' ? f.az160.sold : f.az160;
+  const rows = fs.map(f => {
+    const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta - tot, 0), p = pct(tot, meta), st = statusOf(tot, meta);
+    const az1S = typeof f.az1 === 'object' ? f.az1.sold : f.az1;
+    const az125S = typeof f.az125 === 'object' ? f.az125.sold : f.az125;
+    const az160S = typeof f.az160 === 'object' ? f.az160.sold : f.az160;
     return {nome:f.nome, uf:f.uf, az1:az1S||0, az125:az125S||0, az160:az160S||0, total:tot, meta, falta, pct:p, status:st};
   });
-  rows.sort((a,b)=>{
-    const k = filiaisSort.key, dir = filiaisSort.dir==='asc'?1:-1;
-    if(typeof a[k]==='string') return a[k].localeCompare(b[k])*dir;
-    return (a[k]-b[k])*dir;
+  rows.sort((a,b) => {
+    const k = filiaisSort.key, dir = filiaisSort.dir === 'asc' ? 1 : -1;
+    if(typeof a[k] === 'string') return a[k].localeCompare(b[k]) * dir;
+    return (a[k] - b[k]) * dir;
   });
   const tbody = document.querySelector('#tblFiliais tbody');
   if (tbody) {
-    tbody.innerHTML = rows.map(r=>`
+    tbody.innerHTML = rows.map(r => `
       <tr>
         <td><b>${esc(r.nome)}</b></td>
         <td><span class="chip ${r.uf==='PB'?'gold':'blue'}">${r.uf}</span></td>
@@ -885,39 +939,36 @@ function renderFiliaisTable(fs){
   }
 }
 
-/* ================================================================
-   TEMPLATE 2 — RESUMO POR FILIAL
-   ================================================================ */
 let selectedFilial = null;
 function populateStoreSelect(){
   const fs = filiaisFiltradas();
-  if(!fs.find(f=>f.nome===selectedFilial)) selectedFilial = fs[0] ? fs[0].nome : null;
+  if(!fs.find(f => f.nome === selectedFilial)) selectedFilial = fs[0] ? fs[0].nome : null;
   const sel = document.getElementById('storeSelect');
-  if (sel) sel.innerHTML = fs.map(f=>`<option value="${esc(f.nome)}" ${f.nome===selectedFilial?'selected':''}>${esc(f.nome)} (${f.uf})</option>`).join('');
+  if (sel) sel.innerHTML = fs.map(f => `<option value="${esc(f.nome)}" ${f.nome===selectedFilial?'selected':''}>${esc(f.nome)} (${f.uf})</option>`).join('');
   const chips = document.getElementById('storeQuickChips');
   if (chips) {
-    const topByTotal = [...fs].sort((a,b)=>filialTotal(b)-filialTotal(a)).slice(0,5);
-    chips.innerHTML = topByTotal.map(f=>`<span class="store-chip ${f.nome===selectedFilial?'active':''}" data-store="${esc(f.nome)}">${esc(f.nome)}</span>`).join('');
-    chips.querySelectorAll('.store-chip').forEach(c=>c.addEventListener('click', ()=>{
+    const topByTotal = [...fs].sort((a,b) => filialTotal(b) - filialTotal(a)).slice(0,5);
+    chips.innerHTML = topByTotal.map(f => `<span class="store-chip ${f.nome===selectedFilial?'active':''}" data-store="${esc(f.nome)}">${esc(f.nome)}</span>`).join('');
+    chips.querySelectorAll('.store-chip').forEach(c => c.addEventListener('click', () => {
       selectedFilial = c.dataset.store; if (sel) sel.value = selectedFilial; renderFilialCharts();
     }));
   }
 }
-document.getElementById('storeSelect')?.addEventListener('change', e=>{ selectedFilial = e.target.value; renderFilialCharts(); });
+document.getElementById('storeSelect')?.addEventListener('change', e => { selectedFilial = e.target.value; renderFilialCharts(); });
 
 function renderFilialCharts(){
   populateStoreSelect();
-  const f = FILIAIS.find(x=>x.nome===selectedFilial);
+  const f = FILIAIS.find(x => x.nome === selectedFilial);
   const kpiEl = document.getElementById('kpiRowFilial');
   if(!f){ if (kpiEl) kpiEl.innerHTML = `<div class="empty-state">Nenhuma filial disponível para este filtro.</div>`; return; }
   
-  const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta-tot,0), st = statusOf(tot,meta);
-  const az1S = typeof f.az1==='object' ? f.az1.sold : f.az1;
-  const az1M = typeof f.az1==='object' ? f.az1.meta : 0;
-  const az125S = typeof f.az125==='object' ? f.az125.sold : f.az125;
-  const az125M = typeof f.az125==='object' ? f.az125.meta : 0;
-  const az160S = typeof f.az160==='object' ? f.az160.sold : f.az160;
-  const az160M = typeof f.az160==='object' ? f.az160.meta : 0;
+  const tot = filialTotal(f), meta = filialMeta(f), falta = Math.max(meta - tot, 0), st = statusOf(tot, meta);
+  const az1S = typeof f.az1 === 'object' ? f.az1.sold : f.az1;
+  const az1M = typeof f.az1 === 'object' ? f.az1.meta : 0;
+  const az125S = typeof f.az125 === 'object' ? f.az125.sold : f.az125;
+  const az125M = typeof f.az125 === 'object' ? f.az125.meta : 0;
+  const az160S = typeof f.az160 === 'object' ? f.az160.sold : f.az160;
+  const az160M = typeof f.az160 === 'object' ? f.az160.meta : 0;
 
   if (kpiEl) {
     kpiEl.innerHTML = [
@@ -930,12 +981,12 @@ function renderFilialCharts(){
   }
 
   const sTag = document.getElementById('filialSellerTag');
-  if (sTag) sTag.textContent = f.vendedores?.length ? f.vendedores.length+' vendedores' : 'venda direta (sem vendedor vinculado)';
+  if (sTag) sTag.textContent = f.vendedores?.length ? f.vendedores.length + ' vendedores' : 'venda direta (sem vendedor vinculado)';
   const tb = document.querySelector('#tblVendedores tbody');
   if (tb) {
-    tb.innerHTML = f.vendedores?.map(v=>`
+    tb.innerHTML = f.vendedores?.map(v => `
       <tr><td><b>${esc(v.nome)}</b></td><td class="num">${v.az1||0}</td><td class="num">${v.az125||0}</td><td class="num">${v.az160||0}</td><td class="num"><b>${(v.az1||0)+(v.az125||0)+(v.az160||0)}</b></td></tr>
-    `).join('') || `<tr><td colspan="5" class="empty-state">Sem vendedores individuais — vendas registradas diretamente pela unidade.</td></tr>`;
+    `).join('') || `<tr><td colspan="5" class="empty-state">Sem vendedores individuais registrados.</td></tr>`;
   }
 
   const cVend = document.getElementById('chartVendedoresFilial');
@@ -943,7 +994,7 @@ function renderFilialCharts(){
     killChart('vendedoresFilial');
     CHARTS.vendedoresFilial = new Chart(cVend, {
       type:'bar',
-      data:{ labels: f.vendedores.map(v=>v.nome), datasets:[{ label:'Total vendido', data:f.vendedores.map(v=>(v.az1||0)+(v.az125||0)+(v.az160||0)), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:46 }] },
+      data:{ labels: f.vendedores.map(v => v.nome), datasets:[{ label:'Total vendido', data:f.vendedores.map(v => (v.az1||0)+(v.az125||0)+(v.az160||0)), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:46 }] },
       options:{ maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:themeColors().text}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
     });
   }
@@ -965,15 +1016,12 @@ function renderFilialCharts(){
   }
 }
 
-/* ================================================================
-   TEMPLATE 2.5 — RANKING
-   ================================================================ */
-document.querySelectorAll('.subtab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+document.querySelectorAll('.subtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('.subview').forEach(s=>s.classList.remove('active'));
-    const targetSub = document.getElementById('sub-'+btn.dataset.sub);
+    document.querySelectorAll('.subview').forEach(s => s.classList.remove('active'));
+    const targetSub = document.getElementById('sub-' + btn.dataset.sub);
     if (targetSub) targetSub.classList.add('active');
     renderRankingActive();
   });
@@ -981,9 +1029,9 @@ document.querySelectorAll('.subtab-btn').forEach(btn=>{
 function activeSub(){ return document.querySelector('.subtab-btn.active')?.dataset.sub || 'lojas'; }
 function renderRankingActive(){
   const s = activeSub();
-  if(s==='lojas') renderRankLojas();
-  if(s==='vendedores') renderRankVendedores();
-  if(s==='revendedores') renderRankRevendedores();
+  if(s === 'lojas') renderRankLojas();
+  if(s === 'vendedores') renderRankVendedores();
+  if(s === 'revendedores') renderRankRevendedores();
 }
 
 function renderRankLojas(){
@@ -992,8 +1040,8 @@ function renderRankLojas(){
   killChart('rankLojas');
   CHARTS.rankLojas = new Chart(c, {
     type:'bar',
-    data:{ labels:RANK_LOJAS.map(x=>x.nome), datasets:[{ data:RANK_LOJAS.map(x=>x.qtd||x.total||0), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:50 }] },
-    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw+' unidades'}}}, scales:{ x:{ticks:{color:themeColors().text, maxRotation:40, minRotation:0}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
+    data:{ labels:RANK_LOJAS.map(x => x.nome), datasets:[{ data:RANK_LOJAS.map(x => x.qtd), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:50 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => c.raw + ' unidades'}}}, scales:{ x:{ticks:{color:themeColors().text, maxRotation:40, minRotation:0}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
   });
 }
 
@@ -1003,8 +1051,8 @@ function renderRankVendedores(){
   killChart('rankVendedores');
   CHARTS.rankVendedores = new Chart(c, {
     type:'bar',
-    data:{ labels:RANK_VENDEDORES.map(x=>x.nome), datasets:[{ data:RANK_VENDEDORES.map(x=>x.qtd||x.total||0), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:34 }] },
-    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.raw+' unidades'}}}, scales:{ x:{ticks:{color:themeColors().text, maxRotation:55, minRotation:35, font:{size:10.5}}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
+    data:{ labels:RANK_VENDEDORES.map(x => x.nome), datasets:[{ data:RANK_VENDEDORES.map(x => x.qtd), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:34 }] },
+    options:{ maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => c.raw + ' unidades'}}}, scales:{ x:{ticks:{color:themeColors().text, maxRotation:55, minRotation:35, font:{size:10.5}}, grid:{display:false}}, y:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}} } }
   });
 }
 
@@ -1017,7 +1065,7 @@ function renderRankRevendedores(){
       kpiCard('AZ1 49CC', REV_HEADER.az1, 'unidades no período', PALETTE.az1, ICO.moto),
       kpiCard('Total', REV_HEADER.total, 'comprado pela rede', '#3b82f6', ICO.trend),
       kpiCard('Projeção', REV_HEADER.previsao, 'unidades esperadas', '#a855f7', ICO.trend),
-      kpiCard('Meta', REV_HEADER.meta, `${pct(REV_HEADER.total,REV_HEADER.meta)}% atingido`, '#22c55e', ICO.target),
+      kpiCard('Meta', REV_HEADER.meta, `${pct(REV_HEADER.total, REV_HEADER.meta)}% atingido`, '#22c55e', ICO.target),
     ].join('');
   }
 
@@ -1026,7 +1074,7 @@ function renderRankRevendedores(){
     killChart('motosCompradas');
     CHARTS.motosCompradas = new Chart(c1, {
       type:'doughnut',
-      data:{ labels:['AZ1 49CC','AZ160CC','AZ125CC'], datasets:[{ data:[MOTOS_COMPRADAS.az1,MOTOS_COMPRADAS.az160,MOTOS_COMPRADAS.az125], backgroundColor:[PALETTE.az1,PALETTE.az160,PALETTE.az125], borderWidth:0 }] },
+      data:{ labels:['AZ1 49CC','AZ160CC','AZ125CC'], datasets:[{ data:[MOTOS_COMPRADAS.az1, MOTOS_COMPRADAS.az160, MOTOS_COMPRADAS.az125], backgroundColor:[PALETTE.az1, PALETTE.az160, PALETTE.az125], borderWidth:0 }] },
       options:{ maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:11, font:{size:11}}}} }
     });
   }
@@ -1036,7 +1084,7 @@ function renderRankRevendedores(){
     killChart('vendasInternas');
     CHARTS.vendasInternas = new Chart(c2, {
       type:'doughnut',
-      data:{ labels:['Marcelo','Lojas'], datasets:[{ data:[VENDAS_INTERNAS.marcelo,VENDAS_INTERNAS.lojas], backgroundColor:['#f0b429','#3b82f6'], borderWidth:0 }] },
+      data:{ labels:['Marcelo','Lojas'], datasets:[{ data:[VENDAS_INTERNAS.marcelo, VENDAS_INTERNAS.lojas], backgroundColor:['#f0b429','#3b82f6'], borderWidth:0 }] },
       options:{ maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:11, font:{size:11}}}} }
     });
   }
@@ -1044,19 +1092,19 @@ function renderRankRevendedores(){
   const c3 = document.getElementById('chartTopRevendedores');
   if (c3) {
     killChart('topRevendedores');
-    const top = [...REVENDEDORES].sort((a,b)=>b.total-a.total).slice(0,8);
+    const top = [...REVENDEDORES].sort((a,b) => b.total - a.total).slice(0,8);
     CHARTS.topRevendedores = new Chart(c3, {
       type:'bar',
-      data:{ labels:top.map(x=>x.nome.split(' - ')[1]||x.nome), datasets:[{ data:top.map(x=>x.total), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:26 }] },
+      data:{ labels:top.map(x => x.nome.split(' - ')[1] || x.nome), datasets:[{ data:top.map(x => x.total), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:26 }] },
       options:{ indexAxis:'y', maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:themeColors().text, precision:0}, grid:{color:themeColors().grid}}, y:{ticks:{color:themeColors().text, font:{size:10.5}}, grid:{display:false}} } }
     });
   }
 
   const tb = document.querySelector('#tblRankRevendedores tbody');
   if (tb) {
-    const ordered = [...REVENDEDORES].sort((a,b)=>a.pos-b.pos);
-    tb.innerHTML = ordered.map(r=>{
-      const pillClass = r.pos===1?'top1':r.pos===2?'top2':r.pos===3?'top3':'';
+    const ordered = [...REVENDEDORES].sort((a,b) => a.pos - b.pos);
+    tb.innerHTML = ordered.map(r => {
+      const pillClass = r.pos === 1 ? 'top1' : r.pos === 2 ? 'top2' : r.pos === 3 ? 'top3' : '';
       return `<tr>
         <td><span class="rank-pill ${pillClass}">${r.pos}</span></td>
         <td><b>${esc(r.nome)}</b></td>
@@ -1067,22 +1115,19 @@ function renderRankRevendedores(){
   }
 }
 
-/* ================================================================
-   TEMPLATE 3 — DETALHAMENTO REVENDEDORES
-   ================================================================ */
 let revSort = {key:'pos', dir:'asc'};
 function renderRevDetail(){
-  const totalComprado = REVENDEDORES.reduce((a,r)=>a+r.total,0);
-  const metaComprado = REVENDEDORES.reduce((a,r)=>a+r.meta,0);
-  const ativos = REVENDEDORES.filter(r=>r.total>0).length;
-  const metaBatida = REVENDEDORES.filter(r=>statusOf(r.total,r.meta)==='ok').length;
+  const totalComprado = REVENDEDORES.reduce((a,r) => a + r.total, 0);
+  const metaComprado = REVENDEDORES.reduce((a,r) => a + r.meta, 0);
+  const ativos = REVENDEDORES.filter(r => r.total > 0).length;
+  const metaBatida = REVENDEDORES.filter(r => statusOf(r.total, r.meta) === 'ok').length;
 
   const kpiEl = document.getElementById('kpiRowRevDetail');
   if (kpiEl) {
     kpiEl.innerHTML = [
-      kpiCard('Revendedores Ativos', ativos+' / '+REVENDEDORES.length, 'com compras no período', '#3b82f6', ICO.store),
+      kpiCard('Revendedores Ativos', ativos + ' / ' + REVENDEDORES.length, 'com compras no período', '#3b82f6', ICO.store),
       kpiCard('Total Comprado', totalComprado, 'unidades na rede', PALETTE.az160, ICO.moto),
-      kpiCard('Meta da Rede', metaComprado, `${pct(totalComprado,metaComprado)}% atingido`, '#22c55e', ICO.target),
+      kpiCard('Meta da Rede', metaComprado, `${pct(totalComprado, metaComprado)}% atingido`, '#22c55e', ICO.target),
       kpiCard('Metas Batidas', metaBatida, 'revendedores acima da meta', '#a855f7', ICO.trend),
     ].join('');
   }
@@ -1099,24 +1144,24 @@ function applyRevFilters(){
   const statusF = statusSelect ? statusSelect.value : 'TODOS';
   const sortSel = sortSelect ? sortSelect.value : 'pos';
 
-  let rows = REVENDEDORES.map(r=>{
+  let rows = REVENDEDORES.map(r => {
     const p = pct(r.total, r.meta), st = statusOf(r.total, r.meta);
     return {...r, pct:p, status:st};
   });
-  if(q) rows = rows.filter(r=>r.nome.toLowerCase().includes(q));
-  if(statusF!=='TODOS') rows = rows.filter(r=>r.status===statusF);
+  if(q) rows = rows.filter(r => r.nome.toLowerCase().includes(q));
+  if(statusF !== 'TODOS') rows = rows.filter(r => r.status === statusF);
 
-  const sortKey = sortSel==='pos'?'pos':sortSel==='total'?'total':sortSel==='pct'?'pct':'nome';
-  const dir = (sortSel==='nome') ? 1 : (revSort.key===sortKey ? (revSort.dir==='asc'?1:-1) : -1);
-  rows.sort((a,b)=> typeof a[sortKey]==='string' ? a[sortKey].localeCompare(b[sortKey])*dir : (a[sortKey]-b[sortKey])*dir);
+  const sortKey = sortSel === 'pos' ? 'pos' : sortSel === 'total' ? 'total' : sortSel === 'pct' ? 'pct' : 'nome';
+  const dir = (sortSel === 'nome') ? 1 : (revSort.key === sortKey ? (revSort.dir === 'asc' ? 1 : -1) : -1);
+  rows.sort((a,b) => typeof a[sortKey] === 'string' ? a[sortKey].localeCompare(b[sortKey]) * dir : (a[sortKey] - b[sortKey]) * dir);
 
   const chipEl = document.getElementById('revCountChip');
   if (chipEl) chipEl.textContent = rows.length + ' de ' + REVENDEDORES.length + ' revendedores';
 
   const tb = document.querySelector('#tblRevDetail tbody');
   if (tb) {
-    tb.innerHTML = rows.map(r=>{
-      const pillClass = r.pos===1?'top1':r.pos===2?'top2':r.pos===3?'top3':'';
+    tb.innerHTML = rows.map(r => {
+      const pillClass = r.pos === 1 ? 'top1' : r.pos === 2 ? 'top2' : r.pos === 3 ? 'top3' : '';
       return `<tr>
         <td><span class="rank-pill ${pillClass}">${r.pos}</span></td>
         <td><b>${esc(r.nome)}</b></td>
@@ -1132,7 +1177,7 @@ function applyRevFilters(){
 }
 
 /* ================================================================
-   ORDENAÇÃO DAS TABELAS & LISTENERS
+   LISTENERS & INICIALIZAÇÃO
    ================================================================ */
 document.querySelectorAll('#tblFiliais thead th').forEach((th) => {
   th.addEventListener('click', () => {
@@ -1163,9 +1208,6 @@ document.querySelectorAll('#tblRevDetail thead th').forEach((th) => {
   });
 });
 
-/* ================================================================
-   INICIALIZAÇÃO & REFRESH DA API
-   ================================================================ */
 function renderAllCharts() {
   renderGeral();
   renderFilialCharts();
