@@ -669,6 +669,7 @@ function normalizeRevendedores(list) {
     ...r,
     pos: Number(r.pos || idx + 1),
     nome: String(r.nome || r.revendedor || r.cliente || 'Revendedor ' + (idx + 1)).trim(),
+    uf: String(r.uf || r.estado || r.ufEstado || '').trim().toUpperCase() || 'PB',
     az160: Number(r.az160 || r['AZ160'] || r.az160cc || 0),
     az125: Number(r.az125 || r['AZ125'] || r.az125cc || 0),
     az1: Number(r.az1 || r['AZ1'] || r.az1cc || 0),
@@ -844,11 +845,16 @@ document.getElementById('ufFilter')?.addEventListener('change', e => {
   currentUF = e.target.value;
   const badge = document.getElementById('ufBadgeGeral');
   if (badge) badge.textContent = currentUF === 'TODOS' ? 'PB + RN' : currentUF;
-  renderGeral();
+  renderAllCharts();
   populateStoreSelect();
 });
 function filiaisFiltradas(){
   return currentUF === 'TODOS' ? FILIAIS : FILIAIS.filter(f => f.uf === currentUF);
+}
+
+function revendedoresFiltrados(){
+  if (currentUF === 'TODOS') return REVENDEDORES;
+  return REVENDEDORES.filter(r => (String(r.uf || '').trim().toUpperCase() === currentUF));
 }
 
 /* ================================================================
@@ -1069,15 +1075,19 @@ function renderRankVendedores(){
 }
 
 function renderRankRevendedores(){
+  const revs = revendedoresFiltrados();
+  const totalComprado = revs.reduce((a,r) => a + r.total, 0);
+  const metaComprado = revs.reduce((a,r) => a + r.meta, 0);
+
   const kpiEl = document.getElementById('kpiRowRankRev');
   if (kpiEl) {
     kpiEl.innerHTML = [
-      kpiCard('AZ160CC', REV_HEADER.az160, 'unidades no período', PALETTE.az160, ICO.moto),
-      kpiCard('AZ125CC', REV_HEADER.az125, 'unidades no período', PALETTE.az125, ICO.moto),
-      kpiCard('AZ1 49CC', REV_HEADER.az1, 'unidades no período', PALETTE.az1, ICO.moto),
-      kpiCard('Total', REV_HEADER.total, 'comprado pela rede', '#3b82f6', ICO.trend),
-      kpiCard('Projeção', REV_HEADER.previsao, 'unidades esperadas', '#a855f7', ICO.trend),
-      kpiCard('Meta', REV_HEADER.meta, `${pct(REV_HEADER.total, REV_HEADER.meta)}% atingido`, '#22c55e', ICO.target),
+      kpiCard('AZ160CC', revs.reduce((a,r) => a + r.az160, 0), 'unidades no período', PALETTE.az160, ICO.moto),
+      kpiCard('AZ125CC', revs.reduce((a,r) => a + r.az125, 0), 'unidades no período', PALETTE.az125, ICO.moto),
+      kpiCard('AZ1 49CC', revs.reduce((a,r) => a + r.az1, 0), 'unidades no período', PALETTE.az1, ICO.moto),
+      kpiCard('Total', totalComprado, 'comprado pela rede', '#3b82f6', ICO.trend),
+      kpiCard('Projeção', revs.reduce((a,r) => a + r.projecao, 0), 'unidades esperadas', '#a855f7', ICO.trend),
+      kpiCard('Meta', metaComprado, `${pct(totalComprado, metaComprado)}% atingido`, '#22c55e', ICO.target),
     ].join('');
   }
 
@@ -1086,7 +1096,7 @@ function renderRankRevendedores(){
     killChart('motosCompradas');
     CHARTS.motosCompradas = new Chart(c1, {
       type:'doughnut',
-      data:{ labels:['AZ1 49CC','AZ160CC','AZ125CC'], datasets:[{ data:[MOTOS_COMPRADAS.az1, MOTOS_COMPRADAS.az160, MOTOS_COMPRADAS.az125], backgroundColor:[PALETTE.az1, PALETTE.az160, PALETTE.az125], borderWidth:0 }] },
+      data:{ labels:['AZ1 49CC','AZ160CC','AZ125CC'], datasets:[{ data:[revs.reduce((a,r) => a + r.az1, 0), revs.reduce((a,r) => a + r.az160, 0), revs.reduce((a,r) => a + r.az125, 0)], backgroundColor:[PALETTE.az1, PALETTE.az160, PALETTE.az125], borderWidth:0 }] },
       options:{ maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom', labels:{color:themeColors().text, boxWidth:11, font:{size:11}}}} }
     });
   }
@@ -1104,7 +1114,7 @@ function renderRankRevendedores(){
   const c3 = document.getElementById('chartTopRevendedores');
   if (c3) {
     killChart('topRevendedores');
-    const top = [...REVENDEDORES].sort((a,b) => b.total - a.total).slice(0,8);
+    const top = [...revs].sort((a,b) => b.total - a.total).slice(0,8);
     CHARTS.topRevendedores = new Chart(c3, {
       type:'bar',
       data:{ labels:top.map(x => x.nome.split(' - ')[1] || x.nome), datasets:[{ data:top.map(x => x.total), backgroundColor:PALETTE.bars, borderRadius:8, maxBarThickness:26 }] },
@@ -1114,7 +1124,7 @@ function renderRankRevendedores(){
 
   const tb = document.querySelector('#tblRankRevendedores tbody');
   if (tb) {
-    const ordered = [...REVENDEDORES].sort((a,b) => a.pos - b.pos);
+    const ordered = [...revs].sort((a,b) => a.pos - b.pos);
     tb.innerHTML = ordered.map(r => {
       const pillClass = r.pos === 1 ? 'top1' : r.pos === 2 ? 'top2' : r.pos === 3 ? 'top3' : '';
       return `<tr>
@@ -1123,21 +1133,22 @@ function renderRankRevendedores(){
         <td class="num">${r.az160}</td><td class="num">${r.az125}</td><td class="num">${r.az1}</td>
         <td class="num"><b>${r.total}</b></td><td class="num">${r.projecao}</td><td class="num">${r.meta}</td>
       </tr>`;
-    }).join('');
+    }).join('') || `<tr><td colspan="8" class="empty-state">Nenhum revendedor encontrado para o estado selecionado.</td></tr>`;
   }
 }
 
 let revSort = {key:'pos', dir:'asc'};
 function renderRevDetail(){
-  const totalComprado = REVENDEDORES.reduce((a,r) => a + r.total, 0);
-  const metaComprado = REVENDEDORES.reduce((a,r) => a + r.meta, 0);
-  const ativos = REVENDEDORES.filter(r => r.total > 0).length;
-  const metaBatida = REVENDEDORES.filter(r => statusOf(r.total, r.meta) === 'ok').length;
+  const revs = revendedoresFiltrados();
+  const totalComprado = revs.reduce((a,r) => a + r.total, 0);
+  const metaComprado = revs.reduce((a,r) => a + r.meta, 0);
+  const ativos = revs.filter(r => r.total > 0).length;
+  const metaBatida = revs.filter(r => statusOf(r.total, r.meta) === 'ok').length;
 
   const kpiEl = document.getElementById('kpiRowRevDetail');
   if (kpiEl) {
     kpiEl.innerHTML = [
-      kpiCard('Revendedores Ativos', ativos + ' / ' + REVENDEDORES.length, 'com compras no período', '#3b82f6', ICO.store),
+      kpiCard('Revendedores Ativos', ativos + ' / ' + revs.length, 'com compras no período', '#3b82f6', ICO.store),
       kpiCard('Total Comprado', totalComprado, 'unidades na rede', PALETTE.az160, ICO.moto),
       kpiCard('Meta da Rede', metaComprado, `${pct(totalComprado, metaComprado)}% atingido`, '#22c55e', ICO.target),
       kpiCard('Metas Batidas', metaBatida, 'revendedores acima da meta', '#a855f7', ICO.trend),
@@ -1156,7 +1167,7 @@ function applyRevFilters(){
   const statusF = statusSelect ? statusSelect.value : 'TODOS';
   const sortSel = sortSelect ? sortSelect.value : 'pos';
 
-  let rows = REVENDEDORES.map(r => {
+  let rows = revendedoresFiltrados().map(r => {
     const p = pct(r.total, r.meta), st = statusOf(r.total, r.meta);
     return {...r, pct:p, status:st};
   });
@@ -1168,7 +1179,7 @@ function applyRevFilters(){
   rows.sort((a,b) => typeof a[sortKey] === 'string' ? a[sortKey].localeCompare(b[sortKey]) * dir : (a[sortKey] - b[sortKey]) * dir);
 
   const chipEl = document.getElementById('revCountChip');
-  if (chipEl) chipEl.textContent = rows.length + ' de ' + REVENDEDORES.length + ' revendedores';
+  if (chipEl) chipEl.textContent = rows.length + ' de ' + revendedoresFiltrados().length + ' revendedores';
 
   const tb = document.querySelector('#tblRevDetail tbody');
   if (tb) {
