@@ -28,6 +28,8 @@ function doGet(e) {
     return responseJson({ success: true, data: getPagamentos() });
   }
 
+  return responseJson(buildAnalysisPayload());
+
   // ---- Código original do doGet (Análise Comercial) ----
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
@@ -254,7 +256,7 @@ function processClienteForm(e) {
   const db = getSheetDB();
   const id = 'C' + new Date().getTime();
 
-  let unidade = getField(v, 'Unidade').toLowerCase()
+  let unidade = getNamedField(v, ['Unidade', 'UNIDADE']).toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
 
   db.appendRow([
@@ -262,24 +264,25 @@ function processClienteForm(e) {
     new Date().toISOString(),
     'cliente',
     'AGUARDANDO CONFIRMACAO',
-    getField(v, 'Chassi'),
-    getField(v, 'CPF'),
-    Number(getField(v, 'Entrada'))  || 0,
-    Number(getField(v, 'Valor'))    || 0,
-    getField(v, 'Nome do Cliente'),
-    getField(v, 'Vendedor'),
-    getField(v, 'Cidade'),
+    getNamedField(v, ['Chassi']),
+    getNamedField(v, ['CPF']),
+    numberField(getNamedField(v, ['Entrada', 'ENTRADA'])),
+    numberField(getNamedField(v, ['Valor', 'VALOR'])),
+    getNamedField(v, ['Nome do Cliente', 'Cliente']),
+    getNamedField(v, ['Vendedor']),
+    getNamedField(v, ['Cidade', 'CIDADE']),
     unidade,
-    getField(v, 'Modelo'),
+    getNamedField(v, ['Modelo']),
     'Loja',
-    getField(v, 'Forma de Pagamento'),
-    getField(v, 'Fechou Rastreador?'),
-    getField(v, 'Motivo Não Fechou'),
+    getNamedField(v, ['Forma de Pagamento', 'FORMA DE PAGAMENTO']),
+    getNamedField(v, ['Fechou Rastreador?', 'Fechou o Rastreador ?']),
+    getNamedField(v, ['Motivo Não Fechou']),
     '', '', // Nota Fiscal / Obs (preenchidos pelo Financeiro)
-    new Date().toISOString()
+    new Date().toISOString(),
+    1
   ]);
 
-  Logger.log('✅ Cliente registrado: ' + getField(v, 'Nome do Cliente'));
+  Logger.log('✅ Cliente registrado: ' + getNamedField(v, ['Nome do Cliente', 'Cliente']));
 }
 
 /**
@@ -290,14 +293,14 @@ function processClienteForm(e) {
 function processRevendedorForm(e) {
   const v    = e.namedValues || {};
   const db   = getSheetDB();
-  const nome = getField(v, 'Nome');
-  const cidade = getField(v, 'Cidade');
-  const obs  = getField(v, 'Observação');
+  const nome = getNamedField(v, ['Nome', 'NOME', 'Revendedor']);
+  const cidade = getNamedField(v, ['Cidade', 'CIDADE']);
+  const obs  = getNamedField(v, ['Observação', 'OBSERVAÇÃO']);
 
   const lote = [
-    { modelo: 'AZ1',   qtd: Number(getField(v, 'AZ1'))   || 0 },
-    { modelo: 'AZ125', qtd: Number(getField(v, 'AZ125')) || 0 },
-    { modelo: 'AZ160', qtd: Number(getField(v, 'AZ160')) || 0 },
+    { modelo: 'AZ1',   qtd: numberField(getNamedField(v, ['AZ1'])) },
+    { modelo: 'AZ125', qtd: numberField(getNamedField(v, ['AZ125'])) },
+    { modelo: 'AZ160', qtd: numberField(getNamedField(v, ['AZ160'])) },
   ];
 
   lote.forEach(m => {
@@ -310,7 +313,8 @@ function processRevendedorForm(e) {
       m.modelo, 'Revenda',
       '', '', '',          // Forma Pgto / Rastreador / Motivo
       '', obs,             // Nota Fiscal / Observação
-      new Date().toISOString()
+      new Date().toISOString(),
+      m.qtd
     ]);
     Logger.log('✅ Revendedor: ' + nome + ' | ' + m.modelo + ' x' + m.qtd);
   });
@@ -328,8 +332,10 @@ function getSheetDB() {
     sheet.appendRow([
       'ID','Timestamp','FormType','Status','Chassi','CPF','Entrada','Valor',
       'Cliente','Vendedor','Cidade','Unidade','Modelo','Canal','FormaPagamento',
-      'FechouRastreador','MotivoNaoFechou','NotaFiscalUrl','Observacao','AtualizadoEm'
+      'FechouRastreador','MotivoNaoFechou','NotaFiscalUrl','Observacao','AtualizadoEm','Quantidade'
     ]);
+  } else if (sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].indexOf('Quantidade') === -1) {
+    sheet.getRange(1, sheet.getLastColumn() + 1).setValue('Quantidade');
   }
   return sheet;
 }
@@ -363,7 +369,8 @@ function getPagamentos() {
       motivoNaoFechou: obj.MotivoNaoFechou,
       notaFiscalUrl:  obj.NotaFiscalUrl,
       observacao:     obj.Observacao,
-      atualizadoEm:   obj.AtualizadoEm
+      atualizadoEm: obj.AtualizadoEm,
+      quantidade: obj.Quantidade || 1
     };
   });
 }
@@ -392,7 +399,183 @@ function responseJson(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function normalizeHeader(value) {
+  return String(value || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function readSheetRows(sheetName) {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(normalizeHeader);
+  return values.slice(1).map(row => {
+    const item = {};
+    headers.forEach((header, index) => { if (header) item[header] = row[index]; });
+    return item;
+  });
+}
+
+function rowField(row, names) {
+  for (const name of names) {
+    const value = row[normalizeHeader(name)];
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+  }
+  return '';
+}
+
+function numberField(value) {
+  if (typeof value === 'number') return value;
+  const text = String(value || '').replace(/R\$\s?/g, '').replace(/\./g, '').replace(',', '.');
+  return Number(text.replace(/[^\d.-]/g, '')) || 0;
+}
+
+function normalizeUnit(value) {
+  return String(value || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+}
+
+function inferUF(value) {
+  const text = String(value || '').toLowerCase();
+  return /natal|parnamirim|rn|rio grande do norte/.test(text) ? 'RN' : 'PB';
+}
+
+function buildAnalysisPayload() {
+  const clients = readSheetRows('Form_Clientes').filter(row =>
+    rowField(row, ['Nome do Cliente', 'Cliente']) || rowField(row, ['Modelo']));
+  const resellerRows = readSheetRows('Form_Revendedores').filter(row =>
+    rowField(row, ['Nome', 'NOME', 'Revendedor']));
+
+  const filiaisMap = {};
+  const vendedoresMap = {};
+  const lojasMap = {};
+  const clientTotals = { az1: 0, az125: 0, az160: 0 };
+  const metasRows = readSheetRows('Metas');
+
+  metasRows.forEach(row => {
+    const tipo = String(rowField(row, ['tipo'])).trim().toLowerCase();
+    const nome = String(rowField(row, ['nome'])).trim();
+    const cidade = String(rowField(row, ['cidade'])).trim();
+    const uf = String(rowField(row, ['uf'])).trim().toUpperCase() || inferUF(cidade);
+    const metaAz1 = numberField(rowField(row, ['metaAz1', 'meta AZ1']));
+    const metaAz125 = numberField(rowField(row, ['metaAz125', 'meta AZ125']));
+    const metaAz160 = numberField(rowField(row, ['metaAz160', 'meta AZ160']));
+    const metaTotal = numberField(rowField(row, ['meta'])) || metaAz1 + metaAz125 + metaAz160;
+    const status = String(rowField(row, ['status'])).trim() || 'ativo';
+
+    if (tipo === 'unidade') {
+      const unidadeId = normalizeUnit(nome || cidade);
+      if (!unidadeId) return;
+      filiaisMap[unidadeId] = {
+        nome: nome || cidade, cidade, uf, az1: 0, az125: 0, az160: 0,
+        meta: metaTotal, metaAz1, metaAz125, metaAz160, status, vendedores: {}
+      };
+    }
+  });
+
+  clients.forEach(row => {
+    const unidade = rowField(row, ['Unidade', 'Loja']) || rowField(row, ['Cidade']);
+    const unidadeId = normalizeUnit(unidade);
+    const uf = inferUF(unidade + ' ' + rowField(row, ['Cidade']));
+    const modelo = String(rowField(row, ['Modelo'])).trim().toLowerCase();
+    const key = modelo === 'az125' ? 'az125' : modelo === 'az160' ? 'az160' : modelo === 'az1' ? 'az1' : '';
+    if (!key) return;
+
+    clientTotals[key]++;
+    if (!filiaisMap[unidadeId]) filiaisMap[unidadeId] = { nome: unidade || 'Sem unidade', uf, az1: 0, az125: 0, az160: 0, meta: 0, metaAz1: 0, metaAz125: 0, metaAz160: 0, status: 'ativo', vendedores: {} };
+    filiaisMap[unidadeId][key]++;
+
+    const vendedor = String(rowField(row, ['Vendedor'])).trim();
+    if (vendedor) {
+      const sellerKey = vendedor.toLowerCase();
+      if (!vendedoresMap[sellerKey]) vendedoresMap[sellerKey] = { nome: vendedor, loja: unidade, uf, az1: 0, az125: 0, az160: 0 };
+      vendedoresMap[sellerKey][key]++;
+      if (!filiaisMap[unidadeId].vendedores[sellerKey]) filiaisMap[unidadeId].vendedores[sellerKey] = vendedoresMap[sellerKey];
+    }
+
+    const lojaKey = unidade || 'Sem unidade';
+    if (!lojasMap[lojaKey]) lojasMap[lojaKey] = { nome: lojaKey, loja: lojaKey, uf, qtd: 0 };
+    lojasMap[lojaKey].qtd++;
+  });
+
+  const resellerMap = {};
+  const resellerTotals = { az1: 0, az125: 0, az160: 0 };
+  metasRows.forEach(row => {
+    const tipo = String(rowField(row, ['tipo'])).trim().toLowerCase();
+    if (tipo !== 'revendedor') return;
+    const nome = String(rowField(row, ['nome'])).trim();
+    const cidade = String(rowField(row, ['cidade'])).trim();
+    const key = (nome + '|' + cidade).toLowerCase();
+    const metaAz1 = numberField(rowField(row, ['metaAz1', 'meta AZ1']));
+    const metaAz125 = numberField(rowField(row, ['metaAz125', 'meta AZ125']));
+    const metaAz160 = numberField(rowField(row, ['metaAz160', 'meta AZ160']));
+    const meta = numberField(rowField(row, ['meta'])) || metaAz1 + metaAz125 + metaAz160;
+    resellerMap[key] = { nome, cidade, uf: String(rowField(row, ['uf'])).trim().toUpperCase() || inferUF(cidade), cota: meta, metaAz1, metaAz125, metaAz160, az1: 0, az125: 0, az160: 0, status: String(rowField(row, ['status'])).trim() || 'ativo' };
+  });
+  resellerRows.forEach(row => {
+    const nome = String(rowField(row, ['Nome', 'Revendedor'])).trim();
+    const cidade = String(rowField(row, ['Cidade'])).trim();
+    const key = (nome + '|' + cidade).toLowerCase();
+    if (!resellerMap[key]) resellerMap[key] = { nome: nome || cidade, cidade, uf: inferUF(cidade), cota: 0, metaAz1: 0, metaAz125: 0, metaAz160: 0, az1: 0, az125: 0, az160: 0, status: 'ativo' };
+    ['az1', 'az125', 'az160'].forEach(modelo => {
+      const qtd = numberField(rowField(row, [modelo]));
+      resellerMap[key][modelo] += qtd;
+      resellerTotals[modelo] += qtd;
+    });
+  });
+
+  const clientTotal = clientTotals.az1 + clientTotals.az125 + clientTotals.az160;
+  const resellerTotal = resellerTotals.az1 + resellerTotals.az125 + resellerTotals.az160;
+  const filiais = Object.values(filiaisMap).map(f => ({
+    nome: f.nome, uf: f.uf, az1: f.az1, az125: f.az125, az160: f.az160,
+    total: f.az1 + f.az125 + f.az160, meta: f.meta || 0,
+    vendedores: Object.values(f.vendedores).map(v => ({ nome: v.nome, az1: v.az1, az125: v.az125, az160: v.az160 }))
+  }));
+  const rankVendedores = Object.values(vendedoresMap).map(v => ({
+    nome: v.nome, loja: v.loja, uf: v.uf, az1: v.az1, az125: v.az125, az160: v.az160,
+    vendas: v.az1 + v.az125 + v.az160, qtd: v.az1 + v.az125 + v.az160,
+    meta: 0
+  }));
+  const revendedores = Object.values(resellerMap).map((r, index) => ({
+    pos: index + 1, nome: r.nome, uf: r.uf,
+    cota: r.cota || 0,
+    meta: r.cota || 0,
+    az1: r.az1, az125: r.az125, az160: r.az160, total: r.az1 + r.az125 + r.az160, status: r.status
+  }));
+
+  return {
+    totals: {
+      az1: clientTotals.az1, az125: clientTotals.az125, az160: clientTotals.az160,
+      totalGeral: clientTotal, pb: filiais.filter(f => f.uf === 'PB').reduce((sum, f) => sum + f.total, 0),
+      rn: filiais.filter(f => f.uf === 'RN').reduce((sum, f) => sum + f.total, 0),
+      revendas: resellerTotal, lojas: clientTotal,
+      previsao: 0, meta: filiais.reduce((sum, f) => sum + (f.meta || 0), 0)
+    },
+    filiais,
+    rankLojas: Object.values(lojasMap).map((r, index) => ({ posicao: index + 1, ...r, vendas: r.qtd })),
+    rankVendedores,
+    revHeader: { ...resellerTotals, total: resellerTotal, previsao: 0, meta: revendedores.reduce((sum, r) => sum + (r.meta || 0), 0) },
+    revendedores,
+    motosCompradas: resellerTotals,
+    vendasInternas: { marcelo: 0, lojas: clientTotal },
+    vendasInternasPorModelo: { ...clientTotals, total: clientTotal, meta: { az1: 0, az125: 0, az160: 0, total: 0 } }
+  };
+}
+
 function getField(namedValues, fieldName) {
   const val = namedValues[fieldName];
   return val && val[0] ? String(val[0]).trim() : '';
+}
+
+function getNamedField(namedValues, names) {
+  const normalized = Object.keys(namedValues || {}).reduce((result, key) => {
+    result[normalizeHeader(key)] = namedValues[key];
+    return result;
+  }, {});
+  for (const name of names) {
+    const value = normalized[normalizeHeader(name)];
+    if (value && value[0] !== undefined) return String(value[0]).trim();
+  }
+  return '';
 }
