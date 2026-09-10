@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financeiro — JS GRUPO</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/pagamentos.css">
+</head>
+<body class="pag-app">
+<div class="app">
+  <div class="sb-overlay" id="sbOverlay"></div>
+  <div id="sidebarMount"></div>
+  <div class="main" id="mainApp" style="display:none">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="tb-title">
+        <span class="eyebrow">JS Grupo · Financeiro</span>
+        <h1>Confirmação de Pagamentos</h1>
+      </div>
+    </header>
+    <main class="content">
+      <div class="view-head">
+        <div>
+          <h2 id="unitTitle">Todas as Unidades</h2>
+          <p>Confira notas fiscais e atualize o status das vendas (Clientes + Revendedores).</p>
+        </div>
+        <span class="chip gold" id="unitChip">Liberação / Vendas</span>
+      </div>
+      <div class="kpi-row" id="kpiRow"></div>
+      <div class="card">
+        <div class="filter-bar">
+          <select class="filter-select" id="filterStatus"><option value="">Todos os status</option></select>
+
+          <input class="search-input" id="searchInput" placeholder="Buscar cliente, CPF, chassi..." />
+        </div>
+      </div>
+      <div id="vendasList"><div class="empty-state">Carregando...</div></div>
+    </main>
+  </div>
+</div>
+<script src="js/pagamentos-config.js"></script>
+<script src="js/pagamentos-auth.js"></script>
+<script src="js/pagamentos-api.js"></script>
+<script src="js/pagamentos-components.js"></script>
+<script src="js/pagamentos-shell.js"></script>
+<script>
+let currentUnidade = '', allVendas = [];
+
+function init() {
+  if (!PagAuth.isLoggedIn('financeiro')) { window.location.href = PAGAMENTOS_CONFIG.PAGES.index; return; }
+  document.getElementById('sidebarMount').innerHTML = renderPagSidebar('financeiro');
+  document.getElementById('mainApp').style.display = 'flex';
+  bindPagMobileNav(); bindPagLogout();
+  PAGAMENTOS_CONFIG.STATUS.forEach(s => {
+    const o = document.createElement('option'); o.value = s.id; o.textContent = s.label;
+    document.getElementById('filterStatus').appendChild(o);
+  });
+  renderUnitNav();
+  loadData();
+  ['filterStatus'].forEach(id => document.getElementById(id).addEventListener('change', renderList));
+  document.getElementById('searchInput').addEventListener('input', renderList);
+}
+
+function renderUnitNav() {
+  const nav = document.querySelector('.sb-nav');
+  if (!nav || document.getElementById('unitNavBlock')) return;
+  const block = document.createElement('div');
+  block.id = 'unitNavBlock';
+  block.innerHTML = `<div class="sb-section-lbl">UNIDADES</div>
+    <div class="nav-item pag-unit-sidebar ${!currentUnidade?'active':''}" data-u="">Todas <span class="badge" id="c-all">0</span></div>
+    ${PAGAMENTOS_CONFIG.UNIDADES.map(u=>`<div class="nav-item pag-unit-sidebar ${currentUnidade===u.id?'active':''}" data-u="${u.id}">${u.nome} <span class="badge" id="c-${u.id}">0</span></div>`).join('')}`;
+  nav.appendChild(block);
+  block.querySelectorAll('[data-u]').forEach(el => el.addEventListener('click', () => {
+    currentUnidade = el.dataset.u;
+    const meta = currentUnidade ? getUnidadeMeta(currentUnidade) : null;
+    document.getElementById('unitTitle').textContent = meta ? meta.nome : 'Todas as Unidades';
+    document.getElementById('unitChip').textContent = meta ? meta.nome : 'Liberação / Vendas';
+    block.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.u === currentUnidade));
+    renderList();
+  }));
+}
+
+async function loadData() {
+  try {
+    const res = await PagApi.listVendas({});
+    allVendas = res.data || [];
+    updateCounts(); renderList();
+  } catch (e) {
+    document.getElementById('vendasList').innerHTML = `<div class="empty-state">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function updateCounts() {
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  set('c-all', allVendas.length);
+  PAGAMENTOS_CONFIG.UNIDADES.forEach(u => set('c-'+u.id, allVendas.filter(v => v.unidade === u.id).length));
+}
+
+function getFiltered() {
+  const st = document.getElementById('filterStatus').value;
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return allVendas.filter(v => {
+    if (currentUnidade && v.unidade !== currentUnidade) return false;
+    if (st && v.status !== st) return false;
+    if (v.formType !== 'cliente') return false;
+    if (q && ![v.cliente,v.cpf,v.chassi,v.vendedor].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderKpis(rows) {
+  const k = id => rows.filter(v => v.status === id).length;
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card" style="--accent:#DC2626"><div class="lbl">Aguardando</div><div class="val">${k('AGUARDANDO CONFIRMACAO')}</div></div>
+    <div class="kpi-card" style="--accent:#F59E0B"><div class="lbl">Faltando Info</div><div class="val">${k('FALTANDO INFORMACAO')}</div></div>
+    <div class="kpi-card" style="--accent:#16A34A"><div class="lbl">Pagamento OK</div><div class="val">${k('PAGAMENTO OK')}</div></div>
+    <div class="kpi-card" style="--accent:#0D9488"><div class="lbl">Concluído</div><div class="val">${k('CONCLUIDO')}</div></div>`;
+}
+
+function renderList() {
+  const rows = getFiltered();
+  renderKpis(rows);
+  const box = document.getElementById('vendasList');
+  box.innerHTML = '';
+  box.appendChild(renderPagTable(rows, id => {
+    const v = allVendas.find(x => x.id === id);
+    if (!v) return;
+    renderPagDetail(v, {
+      editable: true,
+      onSave: async (vId, status, obs) => {
+        await PagApi.updateStatus(vId, status, obs);
+        const i = allVendas.findIndex(x => x.id === vId);
+        if (i >= 0) { allVendas[i].status = status; allVendas[i].observacao = obs; }
+        renderList();
+      }
+    });
+  }));
+}
+
+init();
+</script>
+</body>
+</html>

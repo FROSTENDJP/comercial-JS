@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerentes — JS GRUPO</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/pagamentos.css">
+</head>
+<body class="pag-app">
+<div class="app">
+  <div class="sb-overlay" id="sbOverlay"></div>
+  <div id="sidebarMount"></div>
+  <div class="main" id="mainApp" style="display:none">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="tb-title">
+        <span class="eyebrow">JS Grupo · Gerência Comercial</span>
+        <h1>Confirmações de Pagamento</h1>
+      </div>
+    </header>
+    <main class="content">
+      <div class="view-head">
+        <div>
+          <h2 id="viewTitle">Visão Geral</h2>
+          <p>Visualização das confirmações atualizadas pelo financeiro. Somente leitura.</p>
+        </div>
+        <div class="pag-period-chips">
+          <button type="button" class="pag-period-chip active" data-p="">Todos</button>
+          <button type="button" class="pag-period-chip" data-p="dia">Hoje</button>
+          <button type="button" class="pag-period-chip" data-p="semana">Esta Semana</button>
+          <button type="button" class="pag-period-chip" data-p="mes">Este Mês</button>
+        </div>
+      </div>
+      <div class="pag-unit-cards" id="unitCards"></div>
+      <div class="kpi-row" id="kpiRow"></div>
+      <div id="vendasList"><div class="empty-state">Carregando...</div></div>
+    </main>
+  </div>
+</div>
+<script src="js/pagamentos-config.js"></script>
+<script src="js/pagamentos-auth.js"></script>
+<script src="js/pagamentos-api.js"></script>
+<script src="js/pagamentos-components.js"></script>
+<script src="js/pagamentos-shell.js"></script>
+<script>
+let currentPeriod = '', currentUnidade = '', allVendas = [];
+
+function init() {
+  if (!PagAuth.isLoggedIn('gerentes')) { window.location.href = PAGAMENTOS_CONFIG.PAGES.index; return; }
+  document.getElementById('sidebarMount').innerHTML = renderPagSidebar('gerentes');
+  document.getElementById('mainApp').style.display = 'flex';
+  bindPagMobileNav(); bindPagLogout();
+  document.querySelectorAll('.pag-period-chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.pag-period-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    currentPeriod = c.dataset.p;
+    loadData();
+  }));
+  loadData();
+}
+
+async function loadData() {
+  document.getElementById('vendasList').innerHTML = '<div class="empty-state">Carregando...</div>';
+  try {
+    const res = await PagApi.listVendas({ periodo: currentPeriod || undefined });
+    allVendas = res.data || [];
+    renderUnitCards(); renderStats(); renderList();
+  } catch (e) {
+    document.getElementById('vendasList').innerHTML = `<div class="empty-state">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderUnitCards() {
+  const onlyClientes = allVendas.filter(v => v.formType === 'cliente');
+  document.getElementById('unitCards').innerHTML = PAGAMENTOS_CONFIG.UNIDADES.map(u => {
+    const vs = onlyClientes.filter(v => v.unidade === u.id);
+    const ok = vs.filter(v => ['PAGAMENTO OK','CONCLUIDO'].includes(v.status)).length;
+    const pend = vs.filter(v => v.status === 'AGUARDANDO CONFIRMACAO').length;
+    return `<div class="pag-unit-card ${currentUnidade===u.id?'active':''}" data-u="${u.id}">
+      <h3>${esc(u.nome)}</h3>
+      <div class="stats"><div><strong>${vs.length}</strong>Total</div><div><strong style="color:var(--green)">${ok}</strong>OK</div><div><strong style="color:var(--red)">${pend}</strong>Pend.</div></div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.pag-unit-card').forEach(c => c.addEventListener('click', () => {
+    currentUnidade = currentUnidade === c.dataset.u ? '' : c.dataset.u;
+    document.getElementById('viewTitle').textContent = currentUnidade ? getUnidadeMeta(currentUnidade).nome : 'Visão Geral';
+    renderUnitCards(); renderStats(); renderList();
+  }));
+}
+
+function filtered() {
+  const onlyClientes = allVendas.filter(v => v.formType === 'cliente');
+  return currentUnidade ? onlyClientes.filter(v => v.unidade === currentUnidade) : onlyClientes;
+}
+
+function renderStats() {
+  const rows = filtered();
+  const conf = rows.filter(v => ['PAGAMENTO OK','CONCLUIDO'].includes(v.status)).length;
+  const pend = rows.filter(v => v.status === 'AGUARDANDO CONFIRMACAO').length;
+  const totalVal = rows.reduce((s,v) => s + (Number(v.valor)||0), 0);
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card"><div class="lbl">Total</div><div class="val">${rows.length}</div></div>
+    <div class="kpi-card" style="--accent:#16A34A"><div class="lbl">Confirmados</div><div class="val">${conf}</div></div>
+    <div class="kpi-card" style="--accent:#DC2626"><div class="lbl">Aguardando</div><div class="val">${pend}</div></div>
+    <div class="kpi-card" style="--accent:#FF6B00"><div class="lbl">Valor Total</div><div class="val" style="font-size:22px">${formatCurrency(totalVal)}</div></div>`;
+}
+
+function renderList() {
+  const box = document.getElementById('vendasList');
+  box.innerHTML = '';
+  box.appendChild(renderPagTable(filtered(), id => {
+    const v = allVendas.find(x => x.id === id);
+    if (v) renderPagDetail(v, { editable: false });
+  }));
+}
+
+init();
+</script>
+</body>
+</html>
