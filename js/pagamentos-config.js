@@ -3,7 +3,7 @@
  * Use a mesma URL do Apps Script ou uma implantação dedicada com aba Vendas.
  */
 const PAGAMENTOS_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzRT-3kHyXgLLKH9YEakK6JvOZyh1YaFGgV656huWaVlN25xDcQkHurudSw3dDZ41O4',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzRT-3kHyXgLLKH9YEakK6JvOZyh1YaFGgV656huWaVlN25xDcQkHurudSw3dDZ41O4/exec',
 
   AUTH: {
     analise: { label: 'Análise Comercial' },
