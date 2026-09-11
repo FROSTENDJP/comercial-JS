@@ -194,10 +194,8 @@
       card.addEventListener('click', () => {
         const role = card.dataset.role;
         const targetPage = PAGAMENTOS_CONFIG.PAGES[role];
-        
-        if (role === 'vendas') {
-          window.location.href = targetPage;
-        } else if (PagAuth.isLoggedIn(role)) {
+
+        if (PagAuth.isLoggedIn(role)) {
           window.location.href = targetPage;
         } else {
           showPagLogin(role, () => {
