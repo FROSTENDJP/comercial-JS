@@ -442,6 +442,12 @@ function updatePagamento(id, status, observacao) {
   throw new Error('ID não encontrado: ' + id);
 }
 
+function normalizeUserProfile(profile) {
+  const value = String(profile || '').trim().toUpperCase();
+  if (value === 'COMERCIAL') return 'UNIDADE';
+  return value;
+}
+
 function getUsuarios() {
   return readSheetRows('Usuarios');
 }
@@ -455,7 +461,7 @@ function authenticateVendas(usuario, senha) {
   if (!row) throw new Error('Usuário ou senha inválidos.');
   return {
     usuario: String(rowField(row, ['usuario'])).trim(),
-    perfil: String(rowField(row, ['perfil'])).trim().toUpperCase(),
+    perfil: normalizeUserProfile(rowField(row, ['perfil'])),
     unidade: String(rowField(row, ['unidade'])).trim()
   };
 }
@@ -475,8 +481,9 @@ function authenticatePortal(usuario, senha, role) {
 
 function requireVendasUser(params, profiles) {
   const user = authenticateVendas(params.usuario, params.senha);
-  if (profiles.indexOf(user.perfil) === -1) throw new Error('Perfil sem permissão para esta ação.');
-  return user;
+  const normalizedProfile = normalizeUserProfile(user.perfil);
+  if (profiles.indexOf(normalizedProfile) === -1) throw new Error('Perfil sem permissão para esta ação.');
+  return { ...user, perfil: normalizedProfile };
 }
 
 function listVendasScoped(params) {
@@ -492,8 +499,8 @@ function appendMappedRow(sheet, values) {
 }
 
 function createVendaVendas(params) {
-  const user = requireVendasUser(params, ['UNIDADE', 'GERENCIA']);
-  const unidade = user.perfil === 'UNIDADE' ? user.unidade : String(params.unidade || '').trim();
+  const user = requireVendasUser(params, ['UNIDADE']);
+  const unidade = user.unidade || String(params.unidade || '').trim();
   if (!unidade) throw new Error('Unidade obrigatória.');
   const sheet = getSheetDB();
   const financiado = numberField(params.valorFinanciado);
@@ -575,8 +582,20 @@ function normalizeHeader(value) {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+function getSheetByNameLoose(sheetName) {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const targetName = String(sheetName || '').trim();
+  if (!targetName) return null;
+
+  const exactSheet = spreadsheet.getSheetByName(targetName);
+  if (exactSheet) return exactSheet;
+
+  const targetKey = normalizeHeader(targetName);
+  return spreadsheet.getSheets().find(sheet => normalizeHeader(sheet.getName()) === targetKey) || null;
+}
+
 function readSheetRows(sheetName) {
-  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
+  const sheet = getSheetByNameLoose(sheetName);
   if (!sheet || sheet.getLastRow() < 2) return [];
   const values = sheet.getDataRange().getValues();
   const headers = values[0].map(normalizeHeader);

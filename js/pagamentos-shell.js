@@ -13,6 +13,11 @@ function renderPagSidebar(activePage) {
       <div class="sb-section-lbl">CONFIRMAÇÃO DE PAGAMENTOS</div>
       <a href="${p.gerentes}" class="nav-item nav-item-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12"/></svg><span>Gerentes</span></a>
     `;
+  } else if (activePage === 'vendas') {
+    navItems = `
+      <div class="sb-section-lbl">CONFIRMAÇÃO DE PAGAMENTOS</div>
+      <a href="${p.vendas}" class="nav-item nav-item-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg><span>Vendas</span></a>
+    `;
   }
 
   return `
