@@ -47,28 +47,76 @@
       </div>
 
       <section id="saleFormSection" class="card" style="padding:20px;margin-bottom:20px">
-        <div class="view-head"><div><h3>Nova solicitação de confirmação</h3></div></div>
+        <div class="view-head">
+          <div>
+            <h3>Nova solicitação de confirmação</h3>
+          </div>
+        </div>
+
         <form id="saleForm">
           <div class="form-grid">
-            <label class="pag-field"><span>Cliente</span><input name="cliente" required></label>
-            <label class="pag-field"><span>CPF</span><input name="cpf"></label>
-            <label class="pag-field"><span>Modelo</span><select name="modelo" required>
-              <option value="">Selecione</option>
-              <option>AZ1</option>
-              <option>AZ125</option>
-              <option>AZ160</option>
-            </select></label>
-            <label class="pag-field"><span>Valor financiado</span><input name="valorFinanciado" type="number" min="0" step="0.01" required></label>
-            <label class="pag-field"><span>Valor entrada</span><input name="valorEntrada" type="number" min="0" step="0.01" required></label>
-            <label class="pag-field"><span>Forma da entrada</span><input name="formaPagamento" required></label>
-            <label class="pag-field"><span>Banco financiamento</span><input name="bancoFinanciamento"></label>
-            <label class="pag-field"><span>Vendedor</span><input name="vendedor"></label>
-            <label class="pag-field"><span>Cidade</span><input name="cidade"></label>
-            <label class="pag-field"><span>Chassi</span><input name="chassi"></label>
+            <label class="pag-field">
+              <span>Cliente</span>
+              <input name="cliente" required>
+            </label>
+
+            <label class="pag-field">
+              <span>CPF</span>
+              <input name="cpf">
+            </label>
+
+            <label class="pag-field">
+              <span>Modelo</span>
+              <select name="modelo" required>
+                <option value="">Selecione</option>
+                <option>AZ1</option>
+                <option>AZ125</option>
+                <option>AZ160</option>
+              </select>
+            </label>
+
+            <label class="pag-field">
+              <span>Valor financiado</span>
+              <input name="valorFinanciado" type="number" min="0" step="0.01" required>
+            </label>
+
+            <label class="pag-field">
+              <span>Valor entrada</span>
+              <input name="valorEntrada" type="number" min="0" step="0.01" required>
+            </label>
+
+            <label class="pag-field">
+              <span>Forma da entrada</span>
+              <input name="formaPagamento" required>
+            </label>
+
+            <label class="pag-field">
+              <span>Banco financiamento</span>
+              <input name="bancoFinanciamento">
+            </label>
+
+            <label class="pag-field">
+              <span>Vendedor</span>
+              <input name="vendedor">
+            </label>
+
+            <label class="pag-field">
+              <span>Cidade</span>
+              <input name="cidade">
+            </label>
+
+            <label class="pag-field">
+              <span>Chassi</span>
+              <input name="chassi">
+            </label>
           </div>
+
           <p id="formMessage" class="pag-error hidden"></p>
+
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-            <button class="btn-primary" type="submit">Lançar solicitação</button>
+            <button class="btn-primary" type="submit">
+              Lançar solicitação
+            </button>
           </div>
         </form>
       </section>
@@ -79,28 +127,59 @@
 </div>
 
 <section id="loginView" class="card" style="max-width:560px;margin:80px auto;padding:34px;display:block">
-  <div class="view-head"><div><h2>Acesso Vendas</h2><p>Entre com o usuário da unidade ou da gerência.</p></div></div>
+  <div class="view-head">
+    <div>
+      <h2>Acesso Vendas</h2>
+      <p>Entre com o usuário da unidade ou da gerência.</p>
+    </div>
+  </div>
+
   <form id="loginForm">
-    <label class="pag-field"><span>Usuário</span><input id="loginUser" required autocomplete="username"></label>
-    <label class="pag-field"><span>Senha</span><input id="loginPassword" type="password" required autocomplete="current-password"></label>
+    <label class="pag-field">
+      <span>Usuário</span>
+      <input id="loginUser" required autocomplete="username">
+    </label>
+
+    <label class="pag-field">
+      <span>Senha</span>
+      <input id="loginPassword" type="password" required autocomplete="current-password">
+    </label>
+
     <p id="loginError" class="pag-error hidden"></p>
+
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-      <a class="btn-secondary" href="index.html">Voltar aos setores</a>
-      <button class="btn-primary" type="submit">Entrar</button>
+      <a class="btn-secondary" href="index.html">
+        Voltar aos setores
+      </a>
+
+      <button class="btn-primary" type="submit">
+        Entrar
+      </button>
     </div>
   </form>
 </section>
 
 <script src="js/pagamentos-config.js"></script>
 <script src="js/pagamentos-api.js"></script>
+
 <script>
 const sessionKey = 'jsgrupo_vendas_session';
 let session = null;
 let rows = [];
+
 const $ = (id) => document.getElementById(id);
 
 function escText(value) {
-  return String(value || '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
+  return String(value || '').replace(
+    /[&<>\"']/g,
+    c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '\"': '&quot;',
+      "'": '&#39;'
+    }[c])
+  );
 }
 
 function normalizeProfile(profile) {
@@ -122,71 +201,182 @@ function restore() {
 
 function setSidebarInfo() {
   const perfil = normalizeProfile(session && session.perfil);
-  const userText = session ? (session.usuario || 'Usuário') : 'Sem login';
-  const unitText = session && session.unidade ? `Unidade: ${session.unidade}` : 'Aguardando acesso';
-  $('sidebarUser').textContent = session ? `${userText} · ${perfil}` : 'Sem login';
+  const userText = session
+    ? (session.usuario || 'Usuário')
+    : 'Sem login';
+
+  const unitText = session && session.unidade
+    ? `Unidade: ${session.unidade}`
+    : 'Aguardando acesso';
+
+  $('sidebarUser').textContent = session
+    ? `${userText} · ${perfil}`
+    : 'Sem login';
+
   $('sidebarUnit').textContent = unitText;
 }
 
 function renderLoginState() {
   const hasSession = !!(session && session.usuario);
-  $('loginView').style.display = hasSession ? 'none' : 'block';
-  $('mainApp').style.display = hasSession ? 'block' : 'none';
+
+  $('loginView').style.display = hasSession
+    ? 'none'
+    : 'block';
+
+  $('mainApp').style.display = hasSession
+    ? 'block'
+    : 'none';
+
   setSidebarInfo();
 }
 
 function showApp() {
   const perfil = normalizeProfile(session && session.perfil);
+
   $('loginView').style.display = 'none';
   $('mainApp').style.display = 'block';
-  $('identity').textContent = `${session.usuario} · ${perfil}`;
-  $('scopeTitle').textContent = perfil === 'UNIDADE' ? `Vendas de ${session.unidade || 'Unidade'}` : 'Todas as unidades';
-  $('saleFormSection').style.display = canCreateSales() ? 'block' : 'none';
+
+  $('identity').textContent =
+    `${session.usuario} · ${perfil}`;
+
+  $('scopeTitle').textContent =
+    perfil === 'UNIDADE'
+      ? `Vendas de ${session.unidade || 'Unidade'}`
+      : 'Todas as unidades';
+
+  $('saleFormSection').style.display =
+    canCreateSales()
+      ? 'block'
+      : 'none';
+
   setSidebarInfo();
 }
 
 async function loadRows() {
-  const result = await PagApi.request('vendasList', session);
+  const result = await PagApi.request(
+    'vendasList',
+    session
+  );
+
   rows = result.data || [];
   renderRows();
 }
 
 function renderRows() {
-  const perfil = normalizeProfile(session && session.perfil);
+  const perfil = normalizeProfile(
+    session && session.perfil
+  );
+
   const filteredRows = perfil === 'UNIDADE'
-    ? rows.filter(row => String(row.unidade || '').trim().toLowerCase() === String(session.unidade || '').trim().toLowerCase())
+    ? rows.filter(row =>
+        String(row.unidade || '')
+          .trim()
+          .toLowerCase() ===
+        String(session.unidade || '')
+          .trim()
+          .toLowerCase()
+      )
     : rows;
 
   $('salesList').innerHTML = filteredRows.length
-    ? `<div class="tbl-wrap"><table class="pag-table"><thead><tr><th>Cliente</th><th>Unidade</th><th>Modelo</th><th>Valor</th><th>Status</th><th>Edição</th><th>Ação</th></tr></thead><tbody>${filteredRows.map(row => `
-        <tr>
-          <td><b>${escText(row.cliente)}</b><div class="row-sub">${escText(row.cpf || '')}</div></td>
-          <td>${escText(row.unidade)}</td>
-          <td>${escText(row.modelo)}</td>
-          <td>${formatCurrency(row.valorFinanciado || row.valor || 0)}</td>
-          <td>${escText(row.status)}</td>
-          <td>${escText(row.statusEdicao || '-')}</td>
-          <td>${perfil === 'UNIDADE'
-            ? `<button class="btn-secondary" data-edit="${escText(row.id)}" type="button">Pedir correção</button>`
-            : row.statusEdicao === 'SOLICITACAO DE EDICAO'
-              ? `<button class="btn-primary" data-approve="${escText(row.id)}" type="button">Aprovar edição</button>`
-              : '-' }
-          </td>
-        </tr>
-      `).join('')}</tbody></table></div>`
+    ? `
+      <div class="tbl-wrap">
+        <table class="pag-table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Unidade</th>
+              <th>Modelo</th>
+              <th>Valor</th>
+              <th>Status</th>
+              <th>Edição</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${filteredRows.map(row => `
+              <tr>
+                <td>
+                  <b>${escText(row.cliente)}</b>
+                  <div class="row-sub">
+                    ${escText(row.cpf || '')}
+                  </div>
+                </td>
+
+                <td>${escText(row.unidade)}</td>
+                <td>${escText(row.modelo)}</td>
+                <td>
+                  ${formatCurrency(
+                    row.valorFinanciado || row.valor || 0
+                  )}
+                </td>
+                <td>${escText(row.status)}</td>
+                <td>${escText(row.statusEdicao || '-')}</td>
+
+                <td>
+                  ${
+                    perfil === 'UNIDADE'
+                      ? `
+                        <button
+                          class="btn-secondary"
+                          data-edit="${escText(row.id)}"
+                          type="button">
+                          Pedir correção
+                        </button>
+                      `
+                      : row.statusEdicao === 'SOLICITACAO DE EDICAO'
+                        ? `
+                          <button
+                            class="btn-primary"
+                            data-approve="${escText(row.id)}"
+                            type="button">
+                            Aprovar edição
+                          </button>
+                        `
+                        : '-'
+                  }
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
     : '<div class="empty-state">Nenhuma venda encontrada.</div>';
 
-  document.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', requestEdit));
-  document.querySelectorAll('[data-approve]').forEach(button => button.addEventListener('click', approveEdit));
+  document
+    .querySelectorAll('[data-edit]')
+    .forEach(button =>
+      button.addEventListener('click', requestEdit)
+    );
+
+  document
+    .querySelectorAll('[data-approve]')
+    .forEach(button =>
+      button.addEventListener('click', approveEdit)
+    );
 }
 
 async function requestEdit(event) {
   const id = event.currentTarget.dataset.edit;
-  const motivo = prompt('Informe o que precisa ser corrigido:');
+
+  const motivo = prompt(
+    'Informe o que precisa ser corrigido:'
+  );
+
   if (!motivo) return;
 
   try {
-    await PagApi.request('vendasRequestEdit', { ...session, id, motivo });
+    await PagApi.request(
+      'vendasRequestEdit',
+      {
+        ...session,
+        id,
+        motivo
+      }
+    );
+
     await loadRows();
   } catch (error) {
     alert(error.message);
@@ -196,82 +386,131 @@ async function requestEdit(event) {
 async function approveEdit(event) {
   const id = event.currentTarget.dataset.approve;
   const changes = {};
-  const valor = prompt('Novo valor financiado (deixe vazio para não alterar):');
+
+  const valor = prompt(
+    'Novo valor financiado (deixe vazio para não alterar):'
+  );
 
   if (valor) {
     changes.ValorFinanciado = Number(valor);
   }
 
   try {
-    await PagApi.request('vendasApproveEdit', { ...session, id, changes: JSON.stringify(changes) });
+    await PagApi.request(
+      'vendasApproveEdit',
+      {
+        ...session,
+        id,
+        changes: JSON.stringify(changes)
+      }
+    );
+
     await loadRows();
   } catch (error) {
     alert(error.message);
   }
 }
 
-$('loginForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  $('loginError').classList.add('hidden');
+$('loginForm').addEventListener(
+  'submit',
+  async event => {
+    event.preventDefault();
 
-  try {
-    const result = await PagApi.request('vendasLogin', {
-      usuario: $('loginUser').value,
-      senha: $('loginPassword').value
-    });
+    $('loginError').classList.add('hidden');
 
-    session = result.data;
-    session.senha = $('loginPassword').value;
-    sessionStorage.setItem(sessionKey, JSON.stringify(session));
+    try {
+      const result = await PagApi.request(
+        'vendasLogin',
+        {
+          usuario: $('loginUser').value,
+          senha: $('loginPassword').value
+        }
+      );
+
+      session = result.data;
+      session.senha = $('loginPassword').value;
+
+      sessionStorage.setItem(
+        sessionKey,
+        JSON.stringify(session)
+      );
+
+      renderLoginState();
+      showApp();
+
+      await loadRows();
+    } catch (error) {
+      $('loginError').textContent = error.message;
+      $('loginError').classList.remove('hidden');
+    }
+  }
+);
+
+$('saleForm').addEventListener(
+  'submit',
+  async event => {
+    event.preventDefault();
+
+    if (!canCreateSales()) {
+      $('formMessage').textContent =
+        'Seu perfil não pode lançar solicitações.';
+
+      $('formMessage').classList.remove('hidden');
+      return;
+    }
+
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+
+    try {
+      await PagApi.request(
+        'vendasCreate',
+        {
+          ...session,
+          ...payload
+        }
+      );
+
+      event.currentTarget.reset();
+
+      $('formMessage').textContent =
+        'Solicitação lançada com sucesso.';
+
+      $('formMessage').classList.remove('hidden');
+
+      await loadRows();
+    } catch (error) {
+      $('formMessage').textContent =
+        error.message;
+
+      $('formMessage').classList.remove('hidden');
+    }
+  }
+);
+
+$('logoutBtn')?.addEventListener(
+  'click',
+  () => {
+    sessionStorage.removeItem(sessionKey);
+    session = null;
 
     renderLoginState();
-    showApp();
-    await loadRows();
-  } catch (error) {
-    $('loginError').textContent = error.message;
-    $('loginError').classList.remove('hidden');
+
+    $('loginUser').value = '';
+    $('loginPassword').value = '';
+    $('loginError').classList.add('hidden');
   }
-});
-
-$('saleForm').addEventListener('submit', async event => {
-  event.preventDefault();
-
-  if (!canCreateSales()) {
-    $('formMessage').textContent = 'Seu perfil não pode lançar solicitações.';
-    $('formMessage').classList.remove('hidden');
-    return;
-  }
-
-  const form = new FormData(event.currentTarget);
-  const payload = Object.fromEntries(form.entries());
-
-  try {
-    await PagApi.request('vendasCreate', { ...session, ...payload });
-    event.currentTarget.reset();
-    $('formMessage').textContent = 'Solicitação lançada com sucesso.';
-    $('formMessage').classList.remove('hidden');
-    await loadRows();
-  } catch (error) {
-    $('formMessage').textContent = error.message;
-    $('formMessage').classList.remove('hidden');
-  }
-});
-
-$('logoutBtn')?.addEventListener('click', () => {
-  sessionStorage.removeItem(sessionKey);
-  session = null;
-  renderLoginState();
-  $('loginUser').value = '';
-  $('loginPassword').value = '';
-  $('loginError').classList.add('hidden');
-});
+);
 
 restore();
 renderLoginState();
 
 if (session && session.usuario) {
   showApp();
-  loadRows().catch(error => alert(error.message));
+
+  loadRows().catch(
+    error => alert(error.message)
+  );
 }
 </script>
 </body>
