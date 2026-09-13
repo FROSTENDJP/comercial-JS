@@ -27,15 +27,30 @@
         </div>
         <span class="chip gold" id="unitChip">Liberação / Vendas</span>
       </div>
-      <div class="kpi-row" id="kpiRow"></div>
-      <div class="card">
-        <div class="filter-bar">
-          <select class="filter-select" id="filterStatus"><option value="">Todos os status</option></select>
 
-          <input class="search-input" id="searchInput" placeholder="Buscar cliente, CPF, chassi..." />
-        </div>
+      <!-- Abas: lançamentos das lojas (unidades) vs. lançamentos de Faturamento -->
+      <!-- (revendedores), que ficam segregados um do outro conforme pedido. -->
+      <div class="pag-period-chips" style="margin-bottom:16px">
+        <button type="button" class="pag-period-chip active" id="tabLojas">Lojas / Unidades</button>
+        <button type="button" class="pag-period-chip" id="tabFaturamento">Faturamento (Revendedores)</button>
       </div>
-      <div id="vendasList"><div class="empty-state">Carregando...</div></div>
+
+      <div id="lojasView">
+        <div class="kpi-row" id="kpiRow"></div>
+        <div class="card">
+          <div class="filter-bar">
+            <select class="filter-select" id="filterStatus"><option value="">Todos os status</option></select>
+
+            <input class="search-input" id="searchInput" placeholder="Buscar cliente, CPF, chassi..." />
+          </div>
+        </div>
+        <div id="vendasList"><div class="empty-state">Carregando...</div></div>
+      </div>
+
+      <div id="faturamentoView" style="display:none">
+        <div class="kpi-row" id="fatKpiRow"></div>
+        <div id="fatFinList"><div class="empty-state">Carregando...</div></div>
+      </div>
     </main>
   </div>
 </div>
@@ -60,6 +75,22 @@ function init() {
   loadData();
   ['filterStatus'].forEach(id => document.getElementById(id).addEventListener('change', renderList));
   document.getElementById('searchInput').addEventListener('input', renderList);
+
+  document.getElementById('tabLojas').addEventListener('click', () => switchTab('lojas'));
+  document.getElementById('tabFaturamento').addEventListener('click', () => switchTab('faturamento'));
+}
+
+// As duas abas ficam sempre segregadas: a de Lojas nunca mistura lançamentos
+// de Faturamento (e vice-versa), porque cada uma busca de uma ação/aba
+// diferente no backend (listPagamentos = BD_Pagamentos, faturamentoList =
+// BD_Faturamento).
+function switchTab(tab) {
+  const isLojas = tab === 'lojas';
+  document.getElementById('tabLojas').classList.toggle('active', isLojas);
+  document.getElementById('tabFaturamento').classList.toggle('active', !isLojas);
+  document.getElementById('lojasView').style.display = isLojas ? 'block' : 'none';
+  document.getElementById('faturamentoView').style.display = isLojas ? 'none' : 'block';
+  if (!isLojas) loadFaturamentos();
 }
 
 function renderUnitNav() {
@@ -136,6 +167,65 @@ function renderList() {
       }
     });
   }));
+}
+
+// ---------------------------------------------------------------
+// Aba Faturamento (revendedores) — segregada da lista de lojas acima.
+// Busca de BD_Faturamento via a ação faturamentoList, nunca misturada
+// com listPagamentos/BD_Pagamentos.
+// ---------------------------------------------------------------
+let allFaturamentos = [];
+
+async function loadFaturamentos() {
+  const box = document.getElementById('fatFinList');
+  box.innerHTML = '<div class="empty-state">Carregando...</div>';
+  try {
+    const res = await PagApi.request('faturamentoList', {});
+    allFaturamentos = (res.data || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    renderFaturamentoKpis();
+    renderFaturamentoList();
+  } catch (e) {
+    box.innerHTML = `<div class="empty-state">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderFaturamentoKpis() {
+  const pend = allFaturamentos.filter(f => f.status !== 'PAGAMENTO CONFIRMADO');
+  const conf = allFaturamentos.filter(f => f.status === 'PAGAMENTO CONFIRMADO');
+  const totalPend = pend.reduce((s, f) => s + f.valorTotal, 0);
+  document.getElementById('fatKpiRow').innerHTML = `
+    <div class="kpi-card" style="--accent:#DC2626"><div class="lbl">Pendentes</div><div class="val">${pend.length}</div></div>
+    <div class="kpi-card" style="--accent:#16A34A"><div class="lbl">Confirmados</div><div class="val">${conf.length}</div></div>
+    <div class="kpi-card" style="--accent:#FF6B00"><div class="lbl">Valor Pendente</div><div class="val" style="font-size:22px">${formatCurrency(totalPend)}</div></div>`;
+}
+
+function renderFaturamentoList() {
+  const box = document.getElementById('fatFinList');
+  if (!allFaturamentos.length) { box.innerHTML = '<div class="empty-state">Nenhum lançamento de faturamento ainda.</div>'; return; }
+  box.innerHTML = `<div class="tbl-wrap"><table class="pag-table"><thead><tr>
+      <th>Revendedor</th><th>Cidade</th><th>Itens</th><th class="num">Valor Total</th><th>Lançado por</th><th>Status</th><th></th>
+    </tr></thead><tbody>${allFaturamentos.map(f => `
+      <tr data-id="${esc(f.id)}"><td><b>${esc(f.revendedor)}</b><div class="row-sub">${formatDate(f.timestamp)}</div></td>
+      <td>${esc(f.cidade)}</td>
+      <td>${f.itens.map(it => `${it.quantidade}x ${esc(it.modelo)}`).join(', ')}</td>
+      <td class="num"><b>${formatCurrency(f.valorTotal)}</b></td>
+      <td>${esc(f.criadoPor)}</td>
+      <td>${f.status === 'PAGAMENTO CONFIRMADO' ? '<span class="status-badge ok">CONFIRMADO</span>' : '<span class="status-badge low">PENDENTE</span>'}</td>
+      <td style="text-align:right">${f.status === 'PAGAMENTO CONFIRMADO' ? '' : `<button type="button" class="btn-primary fat-confirm-btn" data-id="${esc(f.id)}">Confirmar pagamento</button>`}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+  box.querySelectorAll('.fat-confirm-btn').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmFaturamento(btn.dataset.id);
+  }));
+}
+
+async function confirmFaturamento(id) {
+  if (!confirm('Confirmar o pagamento deste lançamento de faturamento?')) return;
+  try {
+    await PagApi.request('faturamentoConfirmar', { id });
+    await loadFaturamentos();
+  } catch (err) { alert(err.message); }
 }
 
 init();

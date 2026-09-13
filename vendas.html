@@ -43,39 +43,31 @@
         <div class="pag-collapsible-body" id="saleFormBody">
           <div class="pag-collapsible-inner">
             <form id="saleForm">
-              <div class="form-grid">
-                <label class="pag-field"><span>Cliente</span><input name="cliente" required></label>
-                <label class="pag-field"><span>CPF</span><input name="cpf"></label>
-                <label class="pag-field"><span>Modelo</span>
-                  <select name="modelo" required>
-                    <option value="">Selecione</option>
-                    <option>AZ1</option>
-                    <option>AZ125</option>
-                    <option>AZ160</option>
-                  </select>
-                </label>
-                <label class="pag-field"><span>Valor financiado</span>
-                  <div class="pag-money-wrap"><span class="pag-money-prefix">R$</span><input name="valorFinanciado" class="pag-money-input" inputmode="decimal" autocomplete="off" placeholder="0,00" required></div>
-                </label>
-                <label class="pag-field"><span>Valor entrada</span>
-                  <div class="pag-money-wrap"><span class="pag-money-prefix">R$</span><input name="valorEntrada" class="pag-money-input" inputmode="decimal" autocomplete="off" placeholder="0,00" required></div>
-                </label>
-                <label class="pag-field"><span>Forma da entrada</span><input name="formaPagamento" required></label>
-                <label class="pag-field"><span>Banco financiamento</span><input name="bancoFinanciamento"></label>
-                <label class="pag-field"><span>Vendedor</span>
-                  <select name="vendedor" id="vendedorSelect" required>
-                    <option value="">Selecione</option>
-                  </select>
-                </label>
-                <label class="pag-field"><span>Cidade</span><input name="cidade"></label>
-                <label class="pag-field"><span>Chassi</span><input name="chassi"></label>
-              </div>
+              <div class="form-grid" id="saleFormFields"></div>
               <p id="formMessage" class="pag-error hidden"></p>
               <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
                 <button class="btn-secondary" type="button" id="saleFormCancel">Cancelar</button>
                 <button class="btn-primary" type="submit">Lançar solicitação</button>
               </div>
             </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Visível apenas para perfil GERENCIA: editor do formulário de Vendas (Prompt 1) -->
+      <section id="formEditorSection" class="card pag-collapsible" style="display:none">
+        <button type="button" class="pag-collapsible-toggle" id="formEditorToggle" aria-expanded="false">
+          <div><h3>Editor de Formulário</h3><p class="row-sub">Adicione, edite ou remova perguntas do formulário de lançamento</p></div>
+          <svg class="pag-collapsible-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="pag-collapsible-body" id="formEditorBody">
+          <div class="pag-collapsible-inner">
+            <div id="formEditorFieldList"></div>
+            <button type="button" class="btn-secondary" id="formEditorAddBtn" style="margin-top:10px">+ Adicionar campo</button>
+            <p id="formEditorMessage" class="pag-error hidden"></p>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px">
+              <button type="button" class="btn-primary" id="formEditorSaveBtn">Salvar formulário</button>
+            </div>
           </div>
         </div>
       </section>
@@ -155,6 +147,7 @@ function init() {
 
   document.getElementById('saleFormSection').style.display = isUnidade ? 'block' : 'none';
   document.getElementById('colabSection').style.display = isGerencia ? 'block' : 'none';
+  document.getElementById('formEditorSection').style.display = isGerencia ? 'block' : 'none';
   document.getElementById('unitCards').style.display = isUnidade ? 'none' : 'grid';
 
   if (isUnidade) {
@@ -164,10 +157,8 @@ function init() {
       document.getElementById('formMessage').classList.add('hidden');
       closeCollapsible(document.getElementById('saleFormToggle'), document.getElementById('saleFormBody'));
     });
-    initCollapsible(document.getElementById('saleFormToggle'), document.getElementById('saleFormBody'), { onOpen: loadColaboradoresForForm });
-    attachCurrencyMask(document.querySelector('#saleForm [name="valorFinanciado"]'));
-    attachCurrencyMask(document.querySelector('#saleForm [name="valorEntrada"]'));
-    loadColaboradoresForForm();
+    initCollapsible(document.getElementById('saleFormToggle'), document.getElementById('saleFormBody'), { onOpen: loadSaleForm });
+    loadSaleForm();
   }
 
   if (isGerencia) {
@@ -179,6 +170,10 @@ function init() {
     });
     initCollapsible(document.getElementById('colabToggle'), document.getElementById('colabBody'));
     loadColaboradores();
+
+    initCollapsible(document.getElementById('formEditorToggle'), document.getElementById('formEditorBody'), { onOpen: loadFormEditor });
+    document.getElementById('formEditorAddBtn').addEventListener('click', addFormEditorField);
+    document.getElementById('formEditorSaveBtn').addEventListener('click', saveFormEditor);
   }
 
   loadData();
@@ -251,24 +246,43 @@ function openDetail(id) {
   attachVendasActions(overlays[overlays.length - 1], v);
 }
 
-// Acrescenta as ações específicas de Vendas (pedir correção / aprovar edição)
-// ao painel de detalhe padrão, sem alterar pagamentos-components.js — assim
-// Financeiro e Gerentes continuam exatamente como estão hoje.
+// Acrescenta as ações específicas de Vendas (pedir correção/exclusão,
+// aprovar ou rejeitar) ao painel de detalhe padrão, sem alterar
+// pagamentos-components.js — assim Financeiro e Gerentes continuam
+// exatamente como estão hoje.
 function attachVendasActions(overlay, v) {
   if (!overlay) return;
   const panel = overlay.querySelector('.pag-detail-panel');
   if (!panel) return;
   const bar = document.createElement('div');
   bar.className = 'pag-detail-foot';
+  const pendente = v.statusEdicao === 'SOLICITACAO DE EDICAO' || v.statusEdicao === 'SOLICITACAO DE EXCLUSAO';
 
-  if (session.perfil === 'UNIDADE' && v.statusEdicao !== 'SOLICITACAO DE EDICAO') {
-    bar.innerHTML = `<button class="btn-secondary" id="btnPedirCorrecao" type="button" style="width:100%">Pedir correção</button>`;
+  if (session.perfil === 'UNIDADE') {
+    if (pendente) {
+      const rotulo = v.statusEdicao === 'SOLICITACAO DE EDICAO' ? 'edição' : 'exclusão';
+      bar.innerHTML = `<p class="row-sub" style="text-align:center">Solicitação de ${rotulo} pendente de aprovação da Gerência.</p>`;
+      panel.appendChild(bar);
+    } else {
+      bar.innerHTML = `
+        <button class="btn-secondary" id="btnPedirCorrecao" type="button" style="width:100%">Pedir correção</button>
+        <button class="btn-secondary" id="btnPedirExclusao" type="button" style="width:100%;color:var(--red);border-color:var(--red)">Pedir exclusão</button>`;
+      panel.appendChild(bar);
+      bar.querySelector('#btnPedirCorrecao').addEventListener('click', () => requestEdit(v.id, overlay));
+      bar.querySelector('#btnPedirExclusao').addEventListener('click', () => requestExclusao(v.id, overlay));
+    }
+  } else if (session.perfil === 'GERENCIA' && pendente) {
+    const aprovarLabel = v.statusEdicao === 'SOLICITACAO DE EDICAO' ? 'Aprovar edição' : 'Aprovar exclusão';
+    bar.innerHTML = `
+      ${v.motivoEdicao ? `<p class="row-sub">Motivo: ${esc(v.motivoEdicao)}</p>` : ''}
+      <button class="btn-primary" id="btnAprovar" type="button" style="width:100%">${aprovarLabel}</button>
+      <button class="btn-secondary" id="btnRejeitar" type="button" style="width:100%">Rejeitar solicitação</button>`;
     panel.appendChild(bar);
-    bar.querySelector('#btnPedirCorrecao').addEventListener('click', () => requestEdit(v.id, overlay));
-  } else if (session.perfil === 'GERENCIA' && v.statusEdicao === 'SOLICITACAO DE EDICAO') {
-    bar.innerHTML = `<button class="btn-primary" id="btnAprovarEdicao" type="button" style="width:100%">Aprovar edição</button>`;
-    panel.appendChild(bar);
-    bar.querySelector('#btnAprovarEdicao').addEventListener('click', () => approveEdit(v.id, overlay));
+    bar.querySelector('#btnAprovar').addEventListener('click', () => {
+      if (v.statusEdicao === 'SOLICITACAO DE EDICAO') approveEdit(v.id, overlay);
+      else approveExclusao(v.id, overlay);
+    });
+    bar.querySelector('#btnRejeitar').addEventListener('click', () => rejectSolicitacao(v.id, overlay));
   }
 }
 
@@ -282,12 +296,39 @@ async function requestEdit(id, overlay) {
   } catch (err) { alert(err.message); }
 }
 
+async function requestExclusao(id, overlay) {
+  const motivo = prompt('Informe o motivo da exclusão:');
+  if (!motivo) return;
+  try {
+    await PagApi.request('vendasRequestExclusao', { id, motivo });
+    overlay.remove();
+    await loadData();
+  } catch (err) { alert(err.message); }
+}
+
 async function approveEdit(id, overlay) {
   const valor = prompt('Novo valor financiado (deixe vazio para não alterar):');
   const changes = {};
   if (valor) changes.ValorFinanciado = Number(valor);
   try {
     await PagApi.request('vendasApproveEdit', { id, changes: JSON.stringify(changes) });
+    overlay.remove();
+    await loadData();
+  } catch (err) { alert(err.message); }
+}
+
+async function approveExclusao(id, overlay) {
+  if (!confirm('Confirma a exclusão deste lançamento? A loja não poderá desfazer essa ação.')) return;
+  try {
+    await PagApi.request('vendasApproveExclusao', { id });
+    overlay.remove();
+    await loadData();
+  } catch (err) { alert(err.message); }
+}
+
+async function rejectSolicitacao(id, overlay) {
+  try {
+    await PagApi.request('vendasRejectSolicitacao', { id });
     overlay.remove();
     await loadData();
   } catch (err) { alert(err.message); }
@@ -346,13 +387,70 @@ function attachCurrencyMask(input) {
 }
 
 // ---------------------------------------------------------------
+// Formulário dinâmico de lançamento (Prompt 1): busca o schema salvo pela
+// Gerência (formSchemaGet) e monta os campos na hora — nada de HTML fixo.
+// ---------------------------------------------------------------
+let saleFormSchema = [];
+
+async function loadSaleForm() {
+  const box = document.getElementById('saleFormFields');
+  box.innerHTML = '<p class="row-sub">Carregando formulário...</p>';
+  try {
+    const res = await PagApi.request('formSchemaGet', { formularioId: 'vendas' });
+    saleFormSchema = res.data || [];
+    await renderSaleFormFields(saleFormSchema);
+  } catch (e) {
+    box.innerHTML = `<p class="pag-error">Erro ao carregar formulário: ${esc(e.message)}</p>`;
+  }
+  refreshCollapsibleHeight(document.getElementById('saleFormBody'));
+}
+
+async function renderSaleFormFields(schema) {
+  const box = document.getElementById('saleFormFields');
+  box.innerHTML = schema.map(fieldWrapperHtml).join('');
+  schema.forEach(field => {
+    if (field.type === 'money') attachCurrencyMask(box.querySelector(`[name="${field.id}"]`));
+  });
+  const colabField = schema.find(f => f.type === 'colaborador');
+  if (colabField) await loadColaboradoresIntoSelect(box.querySelector(`[name="${colabField.id}"]`));
+}
+
+// Um campo "info" não é uma pergunta — é um bloco de texto/instrução dentro
+// do formulário (ex.: um aviso ou uma seção explicativa).
+function fieldWrapperHtml(field) {
+  if (field.type === 'info') {
+    return `<div class="pag-form-info" style="grid-column:1/-1;padding:10px 12px;background:var(--panel-2);border-radius:10px;border:1px solid var(--border)">
+      <b>${esc(field.label)}</b>${field.helpText ? `<p class="row-sub" style="margin:4px 0 0">${esc(field.helpText)}</p>` : ''}
+    </div>`;
+  }
+  return `<label class="pag-field"><span>${esc(field.label)}</span>${fieldInputHtml(field)}</label>`;
+}
+
+function fieldInputHtml(field) {
+  const req = field.required ? 'required' : '';
+  switch (field.type) {
+    case 'select':
+      return `<select name="${field.id}" ${req}><option value="">Selecione</option>${(field.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+    case 'colaborador':
+      return `<select name="${field.id}" ${req}><option value="">Selecione</option></select>`;
+    case 'checkbox':
+      return `<input type="checkbox" name="${field.id}" value="Sim">`;
+    case 'textarea':
+      return `<textarea name="${field.id}" ${req}></textarea>`;
+    case 'money':
+      return `<div class="pag-money-wrap"><span class="pag-money-prefix">R$</span><input name="${field.id}" class="pag-money-input" inputmode="decimal" autocomplete="off" placeholder="0,00" ${req}></div>`;
+    case 'number':
+      return `<input type="number" name="${field.id}" ${req}>`;
+    default:
+      return `<input type="text" name="${field.id}" ${req}>`;
+  }
+}
+
+// ---------------------------------------------------------------
 // Vendedor (colaboradores) — dropdown do formulário da loja, filtrado
 // no backend pela própria unidade do usuário logado (listColaboradoresScoped).
-// Recarregado toda vez que o card é aberto, para trazer colaboradores
-// cadastrados pela Gerência desde o último carregamento.
 // ---------------------------------------------------------------
-async function loadColaboradoresForForm() {
-  const sel = document.getElementById('vendedorSelect');
+async function loadColaboradoresIntoSelect(sel) {
   if (!sel) return;
   const currentVal = sel.value;
   sel.innerHTML = '<option value="">Carregando...</option>';
@@ -430,6 +528,94 @@ async function toggleColabStatus(id, status) {
 }
 
 // ---------------------------------------------------------------
+// Editor de Formulário (perfil GERENCIA / Comercial) — Prompt 1.
+// Trabalha sobre uma cópia local (editorSchema) e só grava de fato quando
+// "Salvar formulário" é clicado (formSchemaSave). Campos "core" (fixos do
+// sistema) não podem ser removidos nem trocar de tipo — o backend também
+// bloqueia isso, então aqui é só uma conveniência visual.
+// ---------------------------------------------------------------
+let editorSchema = [];
+const FIELD_TYPE_LABELS = {
+  text: 'Texto', number: 'Número', money: 'Valor (R$)', select: 'Seleção',
+  checkbox: 'Caixa de seleção', textarea: 'Texto longo', colaborador: 'Vendedor (colaboradores)', info: 'Bloco informativo'
+};
+
+async function loadFormEditor() {
+  const box = document.getElementById('formEditorFieldList');
+  box.innerHTML = '<p class="row-sub">Carregando...</p>';
+  try {
+    const res = await PagApi.request('formSchemaGet', { formularioId: 'vendas' });
+    editorSchema = JSON.parse(JSON.stringify(res.data || []));
+    renderFormEditorList();
+  } catch (e) {
+    box.innerHTML = `<p class="pag-error">Erro: ${esc(e.message)}</p>`;
+  }
+}
+
+function renderFormEditorList() {
+  const box = document.getElementById('formEditorFieldList');
+  box.innerHTML = editorSchema.map((field, i) => `
+    <div class="fe-row" data-index="${i}" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <input class="fe-label" style="flex:2;min-width:140px" value="${esc(field.label)}" placeholder="Rótulo">
+      <select class="fe-type" style="flex:1;min-width:150px" ${field.core ? 'disabled' : ''}>
+        ${Object.keys(FIELD_TYPE_LABELS).map(t => `<option value="${t}" ${t === field.type ? 'selected' : ''}>${FIELD_TYPE_LABELS[t]}</option>`).join('')}
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap"><input type="checkbox" class="fe-required" ${field.required ? 'checked' : ''}> Obrigatório</label>
+      <button type="button" class="btn-secondary fe-up" title="Mover para cima" style="padding:4px 10px">↑</button>
+      <button type="button" class="btn-secondary fe-down" title="Mover para baixo" style="padding:4px 10px">↓</button>
+      ${field.core ? '<span class="chip gold">Fixo do sistema</span>' : '<button type="button" class="btn-secondary fe-remove" style="color:var(--red);border-color:var(--red)">Remover</button>'}
+      ${field.type === 'select' ? `<input class="fe-options" style="flex-basis:100%" placeholder="Opções separadas por vírgula" value="${esc((field.options || []).join(', '))}">` : ''}
+      ${field.type === 'info' ? `<input class="fe-help" style="flex-basis:100%" placeholder="Texto do bloco informativo" value="${esc(field.helpText || '')}">` : ''}
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.fe-row').forEach(row => {
+    const i = Number(row.dataset.index);
+    row.querySelector('.fe-label').addEventListener('input', e => { editorSchema[i].label = e.target.value; });
+    const typeSel = row.querySelector('.fe-type');
+    if (typeSel) typeSel.addEventListener('change', e => { editorSchema[i].type = e.target.value; renderFormEditorList(); });
+    row.querySelector('.fe-required').addEventListener('change', e => { editorSchema[i].required = e.target.checked; });
+    const optsInput = row.querySelector('.fe-options');
+    if (optsInput) optsInput.addEventListener('input', e => { editorSchema[i].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean); });
+    const helpInput = row.querySelector('.fe-help');
+    if (helpInput) helpInput.addEventListener('input', e => { editorSchema[i].helpText = e.target.value; });
+    row.querySelector('.fe-up').addEventListener('click', () => { if (i > 0) { [editorSchema[i - 1], editorSchema[i]] = [editorSchema[i], editorSchema[i - 1]]; renderFormEditorList(); } });
+    row.querySelector('.fe-down').addEventListener('click', () => { if (i < editorSchema.length - 1) { [editorSchema[i + 1], editorSchema[i]] = [editorSchema[i], editorSchema[i + 1]]; renderFormEditorList(); } });
+    const rm = row.querySelector('.fe-remove');
+    if (rm) rm.addEventListener('click', () => { editorSchema.splice(i, 1); renderFormEditorList(); });
+  });
+  refreshCollapsibleHeight(document.getElementById('formEditorBody'));
+}
+
+function addFormEditorField() {
+  editorSchema.push({
+    id: 'extra_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    label: 'Novo campo', type: 'text', required: false, core: false
+  });
+  renderFormEditorList();
+}
+
+async function saveFormEditor() {
+  const msg = document.getElementById('formEditorMessage');
+  const btn = document.getElementById('formEditorSaveBtn');
+  btn.disabled = true;
+  try {
+    if (editorSchema.some(f => !f.label.trim())) throw new Error('Todo campo precisa de um rótulo.');
+    const res = await PagApi.request('formSchemaSave', { formularioId: 'vendas', schema: JSON.stringify(editorSchema) });
+    editorSchema = res.data || editorSchema;
+    saleFormSchema = editorSchema;
+    msg.textContent = 'Formulário salvo com sucesso.';
+    msg.classList.remove('hidden'); msg.classList.add('pag-success');
+    renderFormEditorList();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.classList.remove('hidden'); msg.classList.remove('pag-success');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------
 // Lançamento de venda (perfil UNIDADE)
 // ---------------------------------------------------------------
 async function handleCreateSale(event) {
@@ -443,9 +629,16 @@ async function handleCreateSale(event) {
   const payload = Object.fromEntries(form.entries());
   const msg = document.getElementById('formMessage');
   try {
-    if (parseCurrencyInput(payload.valorFinanciado) <= 0) throw new Error('Informe um valor financiado válido.');
-    if (parseCurrencyInput(payload.valorEntrada) < 0) throw new Error('Informe um valor de entrada válido.');
-    if (!payload.vendedor) throw new Error('Selecione o vendedor.');
+    // Validação genérica a partir do schema — funciona tanto para os campos
+    // fixos quanto para qualquer campo novo criado pela Gerência.
+    saleFormSchema.filter(f => f.required && f.type !== 'info').forEach(f => {
+      const valor = payload[f.id];
+      if (f.type === 'money') {
+        if (parseCurrencyInput(valor) <= 0) throw new Error(`Informe um valor válido para "${f.label}".`);
+      } else if (!valor || !String(valor).trim()) {
+        throw new Error(`O campo "${f.label}" é obrigatório.`);
+      }
+    });
     await PagApi.request('vendasCreate', payload);
     formEl.reset();
     msg.textContent = 'Solicitação lançada com sucesso.';

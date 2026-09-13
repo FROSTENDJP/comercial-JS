@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faturamento — JS GRUPO</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/pagamentos.css">
+  <style>
+    .fat-itens-table{width:100%;border-collapse:collapse;margin:14px 0}
+    .fat-itens-table th{text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mut);padding:0 8px 6px}
+    .fat-itens-table td{padding:6px 8px 6px 0}
+    .fat-itens-table select, .fat-itens-table input{width:100%}
+    .fat-item-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px}
+    .fat-total-row{display:flex;justify-content:flex-end;gap:10px;align-items:baseline;margin:6px 0 16px;font-size:15px}
+    .fat-total-row strong{font-size:20px;color:var(--gold-2)}
+  </style>
+</head>
+<body class="pag-app">
+<div class="app">
+  <div class="sb-overlay" id="sbOverlay"></div>
+  <div id="sidebarMount"></div>
+  <div class="main" id="mainApp" style="display:none">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="tb-title">
+        <span class="eyebrow">JS Grupo · Faturamento</span>
+        <h1>Vendas para Revendedores</h1>
+      </div>
+    </header>
+    <main class="content">
+      <div class="view-head">
+        <div>
+          <h2>Novo lançamento de revenda</h2>
+          <p>Um único lançamento pode reunir vários modelos/quantidades — ex.: 3x AZ1, 3x AZ125 e 4x AZ160 para o mesmo revendedor.</p>
+        </div>
+      </div>
+
+      <section class="card" style="padding:20px;margin-bottom:20px">
+        <form id="fatForm">
+          <div class="form-grid">
+            <label class="pag-field"><span>Revendedor</span><input name="revendedor" required></label>
+            <label class="pag-field"><span>CPF/CNPJ</span><input name="cpfCnpj"></label>
+            <label class="pag-field"><span>Cidade</span><input name="cidade"></label>
+          </div>
+
+          <table class="fat-itens-table">
+            <thead><tr><th>Modelo</th><th>Quantidade</th><th>Valor unitário</th><th></th></tr></thead>
+            <tbody id="fatItensBody"></tbody>
+          </table>
+          <button type="button" class="btn-secondary" id="fatAddItem">+ Adicionar item</button>
+
+          <div class="fat-total-row">
+            <span>Valor total:</span> <strong id="fatTotal">R$ 0,00</strong>
+          </div>
+
+          <label class="pag-field"><span>Comprovante (link/observação)</span><textarea name="observacao" placeholder="Cole aqui o link do comprovante ou alguma observação"></textarea></label>
+
+          <p id="fatMessage" class="pag-error hidden"></p>
+          <div style="display:flex;justify-content:flex-end;margin-top:16px">
+            <button class="btn-primary" type="submit">Lançar venda de revenda</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="view-head">
+        <div><h2>Meus lançamentos</h2><p>Status da confirmação de pagamento pelo Financeiro.</p></div>
+      </div>
+      <div id="fatList"><div class="empty-state">Carregando...</div></div>
+    </main>
+  </div>
+</div>
+<script src="js/pagamentos-config.js"></script>
+<script src="js/pagamentos-auth.js"></script>
+<script src="js/pagamentos-api.js"></script>
+<script src="js/pagamentos-shell.js"></script>
+<script>
+let session = null;
+let itemSeq = 0;
+
+function init() {
+  if (!PagAuth.isLoggedIn('faturamento')) { window.location.href = PAGAMENTOS_CONFIG.PAGES.index; return; }
+  session = PagAuth.getSession();
+  document.getElementById('sidebarMount').innerHTML = renderPagSidebar('faturamento');
+  document.getElementById('mainApp').style.display = 'flex';
+  bindPagMobileNav(); bindPagLogout();
+
+  addItemRow();
+  document.getElementById('fatAddItem').addEventListener('click', () => addItemRow());
+  document.getElementById('fatForm').addEventListener('submit', handleCreateFaturamento);
+
+  loadList();
+}
+
+// ---------------------------------------------------------------
+// Linhas dinâmicas de item (modelo + quantidade + valor unitário).
+// ---------------------------------------------------------------
+function addItemRow() {
+  const id = 'it' + (++itemSeq);
+  const tr = document.createElement('tr');
+  tr.dataset.rowId = id;
+  tr.innerHTML = `
+    <td><select class="fat-modelo" required>
+      <option value="">Selecione</option>
+      <option>AZ1</option><option>AZ125</option><option>AZ160</option>
+    </select></td>
+    <td><input class="fat-qtd" type="number" min="1" step="1" placeholder="0" required></td>
+    <td><div class="pag-money-wrap"><span class="pag-money-prefix">R$</span><input class="fat-valor pag-money-input" inputmode="decimal" autocomplete="off" placeholder="0,00" required></div></td>
+    <td><button type="button" class="fat-item-remove" title="Remover item">&times;</button></td>`;
+  document.getElementById('fatItensBody').appendChild(tr);
+  attachCurrencyMaskLocal(tr.querySelector('.fat-valor'));
+  tr.querySelector('.fat-item-remove').addEventListener('click', () => { tr.remove(); recomputeTotal(); });
+  tr.querySelector('.fat-qtd').addEventListener('input', recomputeTotal);
+  tr.querySelector('.fat-valor').addEventListener('input', recomputeTotal);
+  recomputeTotal();
+}
+
+// Mesma máscara de moeda usada em vendas.html, copiada aqui para não criar
+// uma dependência entre as duas páginas por causa de uma função local.
+function attachCurrencyMaskLocal(input) {
+  input.addEventListener('input', () => {
+    let digits = input.value.replace(/\D/g, '');
+    if (!digits) { input.value = ''; return; }
+    digits = digits.replace(/^0+(?=\d)/, '');
+    while (digits.length < 3) digits = '0' + digits;
+    const cents = digits.slice(-2);
+    let intPart = digits.slice(0, -2).replace(/^0+(?=\d)/, '') || '0';
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    input.value = `${intPart},${cents}`;
+  });
+}
+
+function collectItens() {
+  return Array.from(document.querySelectorAll('#fatItensBody tr')).map(tr => ({
+    modelo: tr.querySelector('.fat-modelo').value,
+    quantidade: Number(tr.querySelector('.fat-qtd').value) || 0,
+    valorUnitario: parseCurrencyInput(tr.querySelector('.fat-valor').value)
+  })).filter(it => it.modelo && it.quantidade > 0);
+}
+
+function recomputeTotal() {
+  const total = collectItens().reduce((s, it) => s + it.quantidade * it.valorUnitario, 0);
+  document.getElementById('fatTotal').textContent = formatCurrency(total);
+}
+
+async function handleCreateFaturamento(event) {
+  event.preventDefault();
+  const formEl = event.currentTarget;
+  const form = new FormData(formEl);
+  const payload = Object.fromEntries(form.entries());
+  const msg = document.getElementById('fatMessage');
+  const itens = collectItens();
+  try {
+    if (!payload.revendedor.trim()) throw new Error('Informe o nome do revendedor.');
+    if (!itens.length) throw new Error('Adicione ao menos um item com modelo, quantidade e valor.');
+    await PagApi.request('faturamentoCreate', { ...payload, itens: JSON.stringify(itens) });
+    formEl.reset();
+    document.getElementById('fatItensBody').innerHTML = '';
+    addItemRow();
+    msg.textContent = 'Lançamento registrado. Aguardando confirmação do Financeiro.';
+    msg.classList.remove('hidden'); msg.classList.add('pag-success');
+    await loadList();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.classList.remove('hidden'); msg.classList.remove('pag-success');
+  }
+}
+
+async function loadList() {
+  const box = document.getElementById('fatList');
+  box.innerHTML = '<div class="empty-state">Carregando...</div>';
+  try {
+    const res = await PagApi.request('faturamentoList', {});
+    const rows = (res.data || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (!rows.length) { box.innerHTML = '<div class="empty-state">Nenhum lançamento ainda.</div>'; return; }
+    box.innerHTML = `<div class="tbl-wrap"><table class="pag-table"><thead><tr>
+        <th>Revendedor</th><th>Cidade</th><th>Itens</th><th class="num">Valor Total</th><th>Status</th><th>Data</th>
+      </tr></thead><tbody>${rows.map(r => `
+        <tr><td><b>${esc(r.revendedor)}</b></td><td>${esc(r.cidade)}</td>
+        <td>${r.itens.map(it => `${it.quantidade}x ${esc(it.modelo)}`).join(', ')}</td>
+        <td class="num"><b>${formatCurrency(r.valorTotal)}</b></td>
+        <td>${r.status === 'PAGAMENTO CONFIRMADO' ? '<span class="status-badge ok">CONFIRMADO</span>' : '<span class="status-badge low">PENDENTE</span>'}</td>
+        <td>${formatDate(r.timestamp)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="empty-state">Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
